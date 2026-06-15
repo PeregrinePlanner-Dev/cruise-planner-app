@@ -881,8 +881,7 @@
     card.querySelector(".hc-confirm").addEventListener("click", async function() {
       if (cfg.intent === "drink_calculator") {
         window.open("/drinks?ref=planner", "_blank");
-        this.textContent = "Opened in a new tab";
-        this.disabled = true;
+        this.textContent = "Open Drink Calculator (opens new tab)";
         card.querySelector(".hc-dismiss").style.display = "none";
         return;
       }
