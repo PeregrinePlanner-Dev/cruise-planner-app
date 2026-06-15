@@ -694,6 +694,17 @@ def get_profile(session_id):
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
+# Matches explicit requests to open/use the drink package calculator, e.g.
+# "open the drink calculator", "can you run the drink package tool".
+# Detected synchronously on the current message so the "Open Drink
+# Calculator" handoff card can appear on THIS turn, rather than waiting on
+# the background slot-extraction pass (which would only reflect this
+# message on the NEXT reply).
+DRINK_CALC_INTENT_RE = re.compile(
+    r"\b(open|launch|run|try|use|show|pull up|take me to|go to)\b[\s\w'-]{0,30}\b(drink|beverage)\b[\s\w'-]{0,20}\b(calculator|calc|tool)\b",
+    re.I,
+)
+
 
 def _session_summary_label(profile, row):
     """Build a short human-readable label for a saved session, used when a
@@ -3129,18 +3140,29 @@ def chat():
         fresh_profile   = get_profile(session_id)
         handoff_intent  = fresh_profile.get("handoff_intent") if not fresh_profile.get("handoff_generated") else None
         advisor_name    = fresh_profile.get("advisor_name")
-        if handoff_intent == "drink_calculator":
-            # Self-contained card (just opens /drinks in a new tab) — clear
-            # immediately so it doesn't re-surface on every later turn.
-            try:
-                profile_upd = {**fresh_profile, "handoff_intent": None}
-                sb_patch("voyage_profiles", {"session_id": f"eq.{session_id}"},
-                         {"profile": profile_upd, "updated_at": now_iso()})
-            except Exception as e:
-                print(f"Failed to clear drink_calculator handoff_intent: {e}")
     except Exception:
+        fresh_profile   = {}
         handoff_intent  = None
         advisor_name    = None
+
+    # The drink-calculator handoff is self-contained (it just opens /drinks
+    # in a new tab) and doesn't need profile data, so detect it directly from
+    # THIS message instead of relying solely on the background slot
+    # extraction — that extraction runs after the response is already being
+    # built, so its result wouldn't show up until the NEXT reply, making the
+    # button appear to never fire.
+    if handoff_intent != "drink_calculator" and DRINK_CALC_INTENT_RE.search(user_message):
+        handoff_intent = "drink_calculator"
+
+    if handoff_intent == "drink_calculator":
+        # Self-contained card (just opens /drinks in a new tab) — clear
+        # immediately so it doesn't re-surface on every later turn.
+        try:
+            profile_upd = {**fresh_profile, "handoff_intent": None}
+            sb_patch("voyage_profiles", {"session_id": f"eq.{session_id}"},
+                     {"profile": profile_upd, "updated_at": now_iso()})
+        except Exception as e:
+            print(f"Failed to clear drink_calculator handoff_intent: {e}")
 
     return jsonify({"response": bot_reply, "handoff_action": handoff_intent, "advisor_name": advisor_name})
 
