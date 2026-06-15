@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drink Package Calculator — Cruise Planner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      color: #1f2937;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: #1a3d6e;
+      color: white;
+      padding: 14px 24px;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .header span {
+      font-size: 13px;
+      font-weight: 400;
+      opacity: 0.75;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .wrap {
+      max-width: 640px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 14px;
+      background: white;
+      color: #1f2937;
+      font-weight: 600;
+    }
+
+    .field { margin-bottom: 14px; }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
+      width: 100%;
+      background: #1a3d6e;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .btn:hover { background: #244e8a; }
+
+    .result {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 60px;
+    }
+    .result .big {
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .save  { color: #16a34a; }
+    .cost  { color: #dc2626; }
+
+    .caption-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #1e3a5f;
+      margin-top: 12px;
+      display: none;
+    }
+    .caption-box.alt {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      color: #475569;
+    }
+
+    .back-link {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #93c5fd;
+      text-decoration: none;
+      margin-top: 4px;
+    }
+    .back-link:hover { color: #ffffff; }
+
+    .panel-label {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #1a3d6e;
+      margin-bottom: 10px;
+    }
+
+    .verify-note {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    Cruise Drink Package Calculator
+    <span>See whether a beverage package is likely to pay for itself</span>
+    <a class="back-link" href="/">&larr; Back to Cruise Planner</a>
+  </div>
+
+  <div class="wrap">
+
+    <div class="card">
+      <div class="panel-label">Cruise Line &amp; Package</div>
+
+      <div class="field">
+        <label>Cruise Line</label>
+        <select id="line-select"></select>
+      </div>
+
+      <div class="field">
+        <label>Package</label>
+        <select id="package-select"></select>
+      </div>
+
+      <div class="caption-box" id="caption-box"></div>
+      <div class="caption-box alt" id="perk-box"></div>
+      <div class="caption-box alt" id="additional-box"></div>
+    </div>
+
+    <div class="card">
+      <div class="panel-label">Your Typical Drinking Day</div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>Avg. cocktail / spirit price ($)</label>
+          <input type="number" id="cocktail-price" value="14" min="0" step="0.5">
+        </div>
+        <div class="field">
+          <label>Cocktails per day</label>
+          <input type="number" id="cocktail-qty" value="4" min="0" step="1">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>Avg. beer price ($)</label>
+          <input type="number" id="beer-price" value="8" min="0" step="0.5">
+        </div>
+        <div class="field">
+          <label>Beers per day</label>
+          <input type="number" id="beer-qty" value="2" min="0" step="1">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>Avg. wine-by-glass price ($)</label>
+          <input type="number" id="wine-price" value="12" min="0" step="0.5">
+        </div>
+        <div class="field">
+          <label>Glasses of wine per day</label>
+          <input type="number" id="wine-qty" value="0" min="0" step="1">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>Specialty coffee price ($)</label>
+          <input type="number" id="coffee-price" value="5" min="0" step="0.5">
+        </div>
+        <div class="field">
+          <label>Specialty coffees per day</label>
+          <input type="number" id="coffee-qty" value="0" min="0" step="1">
+        </div>
+      </div>
+
+      <button class="btn" onclick="runAnalysis()">Calculate Daily Value</button>
+    </div>
+
+    <div class="card">
+      <div class="panel-label">Result</div>
+      <div class="result" id="result">Pick a cruise line and package above, then calculate.</div>
+    </div>
+
+    <div class="verify-note">
+      Prices shown are typical ranges and change regularly — your travel advisor will confirm
+      current package pricing for your specific sailing.
+    </div>
+
+  </div>
+
+  <script>
+    let packages = [];
+
+    async function loadPackages() {
+      try {
+        const res = await fetch("/api/drink_packages");
+        const data = await res.json();
+        packages = data.packages || [];
+      } catch {
+        packages = [];
+      }
+      populateLines();
+    }
+
+    function populateLines() {
+      const lineSelect = document.getElementById("line-select");
+      const lines = [...new Set(packages.map(p => p.cruise_line))];
+      lineSelect.innerHTML = lines.map(l => `<option value="${l}">${l}</option>`).join("");
+      lineSelect.addEventListener("change", populatePackages);
+      populatePackages();
+    }
+
+    function packageLabel(p) {
+      if (p.ship_class_scope && p.ship_class_scope.toLowerCase() !== "all") {
+        return `${p.package_name} — ${p.ship_class_scope}`;
+      }
+      return p.package_name;
+    }
+
+    function populatePackages() {
+      const line = document.getElementById("line-select").value;
+      const pkgSelect = document.getElementById("package-select");
+      const opts = packages.filter(p => p.cruise_line === line);
+      pkgSelect.innerHTML = opts.map((p, i) =>
+        `<option value="${i}">${packageLabel(p)} — $${Number(p.daily_price_pp).toFixed(0)}/day</option>`
+      ).join("");
+      pkgSelect.dataset.line = line;
+      pkgSelect.addEventListener("change", updateCaption);
+      updateCaption();
+    }
+
+    function currentPackage() {
+      const line = document.getElementById("line-select").value;
+      const idx  = parseInt(document.getElementById("package-select").value, 10);
+      const opts = packages.filter(p => p.cruise_line === line);
+      return opts[idx];
+    }
+
+    function setBox(id, text) {
+      const box = document.getElementById(id);
+      if (text) {
+        box.textContent = text;
+        box.style.display = "block";
+      } else {
+        box.style.display = "none";
+        box.textContent = "";
+      }
+    }
+
+    function updateCaption() {
+      const pkg = currentPackage();
+      setBox("caption-box", pkg && pkg.caption);
+      setBox("perk-box", pkg && pkg.perk_notes ? `What else is included: ${pkg.perk_notes}` : null);
+      setBox("additional-box", pkg && pkg.additional_notes);
+    }
+
+    function runAnalysis() {
+      const pkg = currentPackage();
+      const result = document.getElementById("result");
+      if (!pkg) {
+        result.innerHTML = "Select a cruise line and package first.";
+        return;
+      }
+
+      const cocktailPrice = parseFloat(document.getElementById("cocktail-price").value) || 0;
+      const cocktailQty   = parseFloat(document.getElementById("cocktail-qty").value)   || 0;
+      const beerPrice     = parseFloat(document.getElementById("beer-price").value)     || 0;
+      const beerQty       = parseFloat(document.getElementById("beer-qty").value)       || 0;
+      const winePrice     = parseFloat(document.getElementById("wine-price").value)     || 0;
+      const wineQty       = parseFloat(document.getElementById("wine-qty").value)       || 0;
+      const coffeePrice   = parseFloat(document.getElementById("coffee-price").value)   || 0;
+      const coffeeQty     = parseFloat(document.getElementById("coffee-qty").value)     || 0;
+
+      const GRATUITY = 0.18; // typical onboard beverage gratuity rate for a la carte pricing
+
+      const items = [
+        { price: cocktailPrice, qty: cocktailQty },
+        { price: beerPrice,     qty: beerQty },
+        { price: winePrice,     qty: wineQty },
+        { price: coffeePrice,   qty: coffeeQty },
+      ];
+
+      // A la carte: full retail price + gratuity, no cap applies (no package).
+      let alaCarteTotal = 0;
+      items.forEach(it => { alaCarteTotal += it.price * it.qty; });
+      alaCarteTotal *= (1 + GRATUITY);
+
+      // With the package: covered up to per_drink_cap; anything above the cap
+      // is paid out of pocket on top of the package price, plus gratuity on
+      // that overage (per cap_overage_note).
+      const cap = pkg.per_drink_cap ? Number(pkg.per_drink_cap) : null;
+      let overageTotal = 0;
+      if (cap != null) {
+        items.forEach(it => {
+          if (it.price > cap) {
+            overageTotal += (it.price - cap) * it.qty;
+          }
+        });
+        overageTotal *= (1 + GRATUITY);
+      }
+
+      const packagePrice = Number(pkg.daily_price_pp);
+      const perkValue = pkg.non_drink_perk_value ? Number(pkg.non_drink_perk_value) : 0;
+      const drinkBudget = packagePrice - perkValue;
+      const packageEffectiveCost = drinkBudget + overageTotal;
+      const dailyDifference = alaCarteTotal - packageEffectiveCost;
+
+      let html = "";
+      if (dailyDifference >= 0) {
+        html += `<div class="big save">Estimated drink-budget savings: $${dailyDifference.toFixed(2)} / day</div>`;
+        html += `<div style="margin-top:8px;">Paying a la carte (with gratuity) would run about
+                 <strong>$${alaCarteTotal.toFixed(2)}/day</strong>. The ${packageLabel(pkg)} costs
+                 <strong>$${packagePrice.toFixed(2)}/day</strong>`;
+      } else {
+        html += `<div class="big cost">Estimated extra cost: $${Math.abs(dailyDifference).toFixed(2)} / day</div>`;
+        html += `<div style="margin-top:8px;">Based on these habits, paying a la carte (with gratuity)
+                 would run about <strong>$${alaCarteTotal.toFixed(2)}/day</strong>. The ${packageLabel(pkg)}
+                 costs <strong>$${packagePrice.toFixed(2)}/day</strong>`;
+      }
+
+      if (perkValue > 0) {
+        html += `, of which about <strong>$${perkValue.toFixed(2)}/day</strong> covers non-drink perks
+                  (see below) — leaving roughly <strong>$${drinkBudget.toFixed(2)}/day</strong> as the
+                  effective drink budget`;
+      }
+
+      if (overageTotal > 0) {
+        html += `, plus an estimated <strong>$${overageTotal.toFixed(2)}/day</strong> in overage
+                  charges for drinks above the $${cap.toFixed(2)} per-drink cap`;
+      }
+      html += `. That works out to about <strong>$${packageEffectiveCost.toFixed(2)}/day</strong>
+               for drinks specifically vs. <strong>$${alaCarteTotal.toFixed(2)}/day</strong> a la carte.</div>`;
+
+      if (pkg.includes_notes) {
+        html += `<div style="margin-top:10px; color:#64748b; font-size:12px;">Includes: ${pkg.includes_notes}</div>`;
+      }
+
+      result.innerHTML = html;
+    }
+
+    loadPackages();
+  </script>
+</body>
+</html>

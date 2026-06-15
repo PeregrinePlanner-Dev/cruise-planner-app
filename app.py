@@ -1464,6 +1464,22 @@ def serve_video(filename):
     return send_from_directory(VIDEOS_DIR, filename)
 
 
+@app.route("/drinks")
+def drinks_page():
+    """Standalone drink package calculator (opens in its own tab)."""
+    return render_template("drinks.html")
+
+
+@app.route("/api/drink_packages")
+def drink_packages_route():
+    """Return active drink package rows for the calculator."""
+    try:
+        rows = sb_get("drink_packages", {"active": "eq.true", "select": "*"})
+        return jsonify({"packages": rows or []})
+    except Exception:
+        return jsonify({"packages": []})
+
+
 @app.route("/api/session/check")
 def session_check():
     """Check if there is an existing session with profile data."""

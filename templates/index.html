@@ -735,7 +735,10 @@
       <div class="panel-label" style="color:#1d4ed8; margin-bottom:4px;">⚓ Port Info</div>
       <div class="port-card" id="port-card"></div>
     </div>
-    <div class="panel-label intel-label" style="margin-top:8px;">✦ Insider Intel</div>
+    <div class="panel-label intel-label" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between;">
+      <span>✦ Insider Intel</span>
+      <a href="/drinks" target="_blank" rel="noopener" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px;">🍹 Drink Calculator</a>
+    </div>
     <div class="intel-panel" id="intel-panel">
       <div class="intel-placeholder">Tips and insights will appear here as your plans take shape.</div>
     </div>
@@ -885,6 +888,14 @@
         result.style.display = "block";
         result.innerHTML = d.client_url ? "Done. <a href=\"" + d.client_url + "\" target=\"_blank\" style=\"color:#2563eb;\">Open your cruise vision page</a>" : "Saved — everything is on file.";
         this.style.display = "none";
+        // Collapse the prompt card down to just the confirmation once saved —
+        // no need to keep the ask-permission framing around afterward.
+        const bubble = card.querySelector(".bubble");
+        const titleEl = bubble.querySelector("div");
+        const bodyEl = bubble.querySelector("p");
+        if (titleEl) titleEl.remove();
+        if (bodyEl) bodyEl.remove();
+        card.querySelector(".hc-dismiss")?.remove();
       } catch(e) { this.textContent = cfg.label; this.disabled = false; card.querySelector(".hc-result").style.display = "block"; card.querySelector(".hc-result").textContent = "Something went wrong — try again."; }
     });
     card.querySelector(".hc-dismiss").addEventListener("click", function() { card.remove(); });
