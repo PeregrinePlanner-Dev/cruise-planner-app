@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cruise Planner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── App header ─────────────────────────────────────────────────────── */
+    .app-header {
+      background: #1a3d6e;
+      color: white;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .app-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .app-header-logo {
+      height: 36px;
+      width: auto;
+      display: block;
+    }
+
+    .app-header-text {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .app-header-text span {
+      font-size: 13px;
+      font-weight: 400;
+      opacity: 0.75;
+      display: block;
+      margin-top: 2px;
+    }
+
+    #start-over-btn {
+      background: transparent;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      opacity: 0.8;
+      transition: opacity 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    #start-over-btn:hover {
+      opacity: 1;
+      border-color: rgba(255,255,255,0.8);
+    }
+
+    /* ── Three-column grid ──────────────────────────────────────────────── */
+    .app-grid {
+      display: flex;
+      flex-direction: row;
+      gap: 12px;
+      padding: 12px;
+      flex: 1;
+      min-height: 0;
+      height: calc(100vh - 57px); /* subtract header height */
+    }
+
+    /* ── Left column — Alerts ───────────────────────────────────────────── */
+    .col-alerts {
+      width: 18%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      order: 1;
+    }
+
+    .panel-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+      padding: 0 2px 6px;
+    }
+
+    .alerts-label { color: #92400e; }
+    .intel-label  { color: #065f46; }
+
+    .alerts-panel {
+      flex: 1;
+      background: #fffbeb;
+      border: 1px solid #f59e0b;
+      border-radius: 10px;
+      padding: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .alert-placeholder {
+      color: #b45309;
+      font-size: 12px;
+      opacity: 0.5;
+      text-align: center;
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+
+    .alert-card {
+      background: #fff8e7;
+      border: 1px solid #f59e0b;
+      border-left: 4px solid #d97706;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      position: relative;
+    }
+
+    .alert-card-headline {
+      font-size: 11px;
+      font-weight: 700;
+      color: #92400e;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding-right: 22px;
+    }
+
+    .alert-card-body {
+      font-size: 11.5px;
+      color: #78350f;
+      line-height: 1.5;
+    }
+
+    .card-copy-btn {
+      position: absolute;
+      top: 7px;
+      right: 8px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      opacity: 0.4;
+      padding: 2px;
+      line-height: 1;
+      transition: opacity 0.15s;
+    }
+
+    .card-copy-btn:hover { opacity: 0.85; }
+    .card-copy-btn.copied { opacity: 1; }
+
+    /* ── Center column — Chat ───────────────────────────────────────────── */
+    .col-chat {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      order: 2;
+    }
+
+    .chat-container {
+      flex: 1;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .message {
+      display: flex;
+      flex-direction: column;
+      max-width: 84%;
+    }
+
+    .message.bot  { align-self: flex-start; }
+    .message.user { align-self: flex-end; }
+
+    .bubble {
+      padding: 11px 15px;
+      border-radius: 16px;
+      font-size: 14.5px;
+      line-height: 1.55;
+    }
+
+    .bot .bubble {
+      background: #f0f4f9;
+      color: #1a1a2e;
+      border-bottom-left-radius: 4px;
+    }
+
+    .user .bubble {
+      background: #1a3d6e;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message-time {
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+      padding: 0 4px;
+    }
+
+    .user .message-time { text-align: right; }
+
+    .typing-indicator {
+      display: none;
+      align-self: flex-start;
+      padding: 4px 0 0;
+    }
+
+    .ship-scene {
+      width: 100%;
+      max-width: 480px;
+      height: auto;
+      display: block;
+    }
+
+    .ship-group, .island-group {
+      transform: translateX(0px);
+    }
+
+    .ship-body {
+      animation: ship-bob 3s ease-in-out infinite;
+    }
+
+    @keyframes ship-bob {
+      0%, 100% { transform: translateY(0px) rotate(-0.25deg); }
+      50%       { transform: translateY(-4px) rotate(0.25deg); }
+    }
+
+    .palm {
+      transform-box: fill-box;
+      transform-origin: bottom center;
+      animation: palm-sway 4s ease-in-out infinite;
+    }
+    .palm-2 { animation-delay: 0.6s; }
+
+    @keyframes palm-sway {
+      0%, 100% { transform: rotate(-3deg); }
+      50%       { transform: rotate(3deg); }
+    }
+
+    .wave-1 { animation: wave-move 2.8s linear infinite; }
+    .wave-2 { animation: wave-move 2.8s linear infinite 0.9s; }
+    .smoke  { animation: smoke-rise 2.2s ease-out infinite; }
+    .cruise-text { animation: text-pulse 3s ease-in-out infinite; }
+
+    @keyframes wave-move {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-40px); }
+    }
+
+    @keyframes smoke-rise {
+      0%   { opacity: 0.55; transform: translateY(0) scale(1); }
+      100% { opacity: 0;    transform: translateY(-9px) scale(1.7); }
+    }
+
+    @keyframes text-pulse {
+      0%, 100% { opacity: 0.45; }
+      50%       { opacity: 1; }
+    }
+
+    .chat-input-area {
+      border-top: 1px solid #e8eaed;
+      padding: 14px 18px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background: #fff;
+    }
+
+    #user-input {
+      flex: 1;
+      border: 1.5px solid #dde1e7;
+      border-radius: 22px;
+      padding: 9px 16px;
+      font-size: 14.5px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      line-height: 1.5;
+      transition: border-color 0.15s;
+    }
+
+    #user-input:focus { border-color: #1a3d6e; }
+
+    #send-btn {
+      background: #1a3d6e;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      cursor: pointer;
+      font-size: 17px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    #send-btn:hover    { background: #14305a; }
+    #send-btn:disabled { background: #c0c8d4; cursor: default; }
+
+    /* ── Right column — Video + Insider Intel ───────────────────────────── */
+    .col-intel {
+      width: 26%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      order: 3;
+    }
+
+    .video-panel {
+      background: #0b0d12;
+      border-radius: 10px;
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .video-panel video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .video-caption {
+      padding: 5px 2px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .video-caption-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #1e293b;
+      line-height: 1.3;
+    }
+
+    .video-caption-context {
+      font-size: 10px;
+      color: #64748b;
+      font-style: italic;
+    }
+
+    /* ── Profile summary card ─────────────────────────────────────────── */
+    .profile-card {
+      background: #f8f9ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 10px;
+      padding: 12px 14px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .profile-card-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      color: #4338ca;
+      margin-bottom: 8px;
+    }
+
+    .profile-card-empty {
+      color: #a5b4fc;
+      font-size: 11px;
+      text-align: center;
+      padding: 6px 0;
+      opacity: 0.8;
+    }
+
+    .profile-card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 3px 0;
+      border-bottom: 1px solid #e0e7ff;
+      font-size: 11px;
+    }
+
+    .profile-card-row:last-child { border-bottom: none; }
+
+    .profile-card-key {
+      color: #6366f1;
+      flex-shrink: 0;
+      width: 100px;
+    }
+
+    .profile-card-val {
+      color: #1e1b4b;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    /* ── Narrative layer — warm voice section ───────────────────────────── */
+    .profile-narrative {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .profile-narrative-hero {
+      font-size: 12px;
+      line-height: 1.6;
+      color: #1e1b4b;
+      font-style: italic;
+      padding: 8px 10px;
+      background: #eef2ff;
+      border-radius: 8px;
+      border-left: 3px solid #6366f1;
+      font-weight: 400;
+    }
+
+    .profile-narrative-item {
+      font-size: 11px;
+      line-height: 1.5;
+      color: #312e81;
+      font-style: italic;
+      padding: 6px 8px;
+      background: #eef2ff;
+      border-radius: 6px;
+      border-left: 2px solid #818cf8;
+    }
+
+    .profile-narrative-item .narrative-label {
+      font-style: normal;
+      font-weight: 700;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6366f1;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .profile-facts-divider {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      color: #a5b4fc;
+      margin: 4px 0 6px 0;
+    }
+
+    /* ── Port card ──────────────────────────────────────────────────────── */
+    .port-card {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 11.5px;
+      color: #1e3a5f;
+    }
+    .port-card-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1d4ed8;
+      margin-bottom: 6px;
+    }
+    .port-card-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 3px;
+      align-items: flex-start;
+    }
+    .port-card-label {
+      font-weight: 600;
+      min-width: 70px;
+      color: #3b5bdb;
+      flex-shrink: 0;
+    }
+    .port-card-note {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #bfdbfe;
+      color: #1e3a5f;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .intel-panel {
+      flex: 1;
+      background: #f0fdf8;
+      border: 1px solid #6ee7b7;
+      border-radius: 10px;
+      padding: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .intel-placeholder {
+      color: #059669;
+      font-size: 12px;
+      opacity: 0.5;
+      text-align: center;
+      margin-top: 12px;
+      line-height: 1.5;
+    }
+
+    .intel-card {
+      background: #f0fdf8;
+      border: 1px solid #6ee7b7;
+      border-left: 4px solid #10b981;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      position: relative;
+    }
+
+    .intel-card-headline {
+      font-size: 11px;
+      font-weight: 700;
+      color: #065f46;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding-right: 22px;
+    }
+
+    .intel-card-body {
+      font-size: 11.5px;
+      color: #064e3b;
+      line-height: 1.5;
+    }
+
+    /* ── Mobile stack ───────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .app-grid {
+        flex-direction: column;
+        height: auto;
+        min-height: calc(100vh - 57px);
+      }
+
+      .col-chat   { order: 1; width: 100%; }
+      .col-alerts { order: 2; width: 100%; }
+      .col-intel  { order: 3; width: 100%; }
+
+      .chat-container { height: 70vh; }
+      .intel-panel    { min-height: 200px; flex: none; }
+      .alerts-panel   { min-height: 150px; flex: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── App header ──────────────────────────────────────────────────────── -->
+<header class="app-header">
+  <div class="app-header-left">
+    <img class="app-header-logo" src="/static/images/peregrine-logo.png" alt="Peregrine">
+    <div class="app-header-text">
+      Cruise Planner
+      <span>Your personal cruise planning assistant</span>
+    </div>
+  </div>
+  <button id="start-over-btn">Start Over</button>
+</header>
+
+<!-- ── Three-column grid ───────────────────────────────────────────────── -->
+<div class="app-grid">
+
+  <!-- Left — Alerts + What We Know -->
+  <div class="col-alerts">
+    <div class="panel-label alerts-label">⚠ Alerts</div>
+    <div class="alerts-panel" id="alerts-panel">
+      <div class="alert-placeholder">Decision-critical alerts will appear here as your conversation progresses.</div>
+    </div>
+    <div class="panel-label" style="color:#4338ca;">◈ What We Know</div>
+    <div class="profile-card" id="profile-card">
+      <div class="profile-card-empty" id="profile-card-empty">Your answers will appear here as we go.</div>
+    </div>
+  </div>
+
+  <!-- Center — Chat -->
+  <div class="col-chat">
+    <div class="chat-container">
+      <div class="chat-messages" id="chat-messages">
+        <div class="message bot" id="opening-message">
+          <div class="bubble" id="opening-bubble">
+            Hi, I'm Adrian — I'm here to help you plan your perfect cruise. Is this your first session planning a new cruise, or do we have one already started together?
+          </div>
+          <div class="message-time">Just now</div>
+        </div>
+
+        <div class="typing-indicator" id="typing-indicator">
+          <svg class="ship-scene" viewBox="0 0 640 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <clipPath id="wc"><rect x="0" y="0" width="640" height="100"/></clipPath>
+            </defs>
+
+            <!-- Island — slides in from the right, locks at the right edge -->
+            <g class="island-group">
+              <!-- Forest -->
+              <ellipse cx="555" cy="50" rx="34" ry="22" fill="#4f9b6e"/>
+              <ellipse cx="595" cy="44" rx="30" ry="20" fill="#5fb07e"/>
+              <ellipse cx="622" cy="54" rx="26" ry="18" fill="#4f9b6e"/>
+              <!-- Beach -->
+              <path d="M470,66 Q520,58 580,62 Q615,65 640,70 L640,100 L470,100 Z" fill="#f0dba8"/>
+              <!-- Dock -->
+              <path d="M468,68 L424,73 L424,77 L468,73 Z" fill="#9c6b3c"/>
+              <rect x="430" y="73" width="3" height="14" fill="#8a5d31"/>
+              <rect x="450" y="71" width="3" height="14" fill="#8a5d31"/>
+              <!-- Palm trees (sway in the wind) -->
+              <g class="palm">
+                <path d="M510,66 Q514,48 522,36" stroke="#7a5230" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <path d="M522,36 Q508,30 498,38" stroke="#4f9b6e" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M522,36 Q536,32 544,40" stroke="#4f9b6e" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M522,36 Q520,24 528,16" stroke="#4f9b6e" stroke-width="4" fill="none" stroke-linecap="round"/>
+              </g>
+              <g class="palm palm-2">
+                <path d="M605,68 Q610,52 618,40" stroke="#7a5230" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <path d="M618,40 Q604,34 594,42" stroke="#5fb07e" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M618,40 Q632,36 640,44" stroke="#5fb07e" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M618,40 Q616,28 624,20" stroke="#5fb07e" stroke-width="4" fill="none" stroke-linecap="round"/>
+              </g>
+            </g>
+
+            <!-- Ship — sails left to right, bow points right, drawn on top so it can cover the dock when mooring -->
+            <g class="ship-group">
+              <g class="ship-body">
+                <!-- Funnel + smoke -->
+                <path d="M32,20 L26,10 Q30,6 38,8 L42,20 Z" fill="#274472"/>
+                <ellipse class="smoke" cx="34" cy="6" rx="5" ry="3" fill="#c4c9d0"/>
+                <!-- Deck tiers -->
+                <rect x="6" y="30" width="92" height="10" rx="4" fill="#cfdcec"/>
+                <rect x="14" y="42" width="120" height="10" rx="4" fill="#e7eef6"/>
+                <!-- Bridge + windows -->
+                <rect x="22" y="20" width="58" height="10" rx="3" fill="#1a3d6e"/>
+                <rect x="27" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+                <rect x="36" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+                <rect x="45" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+                <rect x="54" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+                <rect x="63" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+                <rect x="72" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+                <!-- Hull above waterline -->
+                <path d="M2,66 L2,54 Q2,52 6,52 L122,52 Q148,52 154,64 Q146,66 128,66 Z" fill="#f5f8fb"/>
+                <!-- Navy waterline stripe -->
+                <rect x="2" y="63" width="150" height="3" fill="#1a3d6e"/>
+                <!-- Hull below waterline -->
+                <path d="M2,66 Q2,75 12,75 L128,75 Q146,74 154,66 Z" fill="#0f2540"/>
+              </g>
+            </g>
+
+            <!-- Water — always animating, drawn last so it covers the bottom of the ship and dock -->
+            <g clip-path="url(#wc)">
+              <path class="wave-1"
+                d="M-40 68 Q-20 63 0 68 Q20 73 40 68 Q60 63 80 68 Q100 73 120 68 Q140 63 160 68 Q180 73 200 68 Q220 63 240 68 Q260 73 280 68 Q300 63 320 68 Q340 73 360 68 Q380 63 400 68 Q420 73 440 68 Q460 63 480 68 Q500 73 520 68 Q540 63 560 68 Q580 73 600 68 Q620 63 640 68 Q660 73 680 68 L680 100 L-40 100 Z"
+                fill="#60b4e8" opacity="0.75"/>
+              <path class="wave-2"
+                d="M-40 72 Q-20 67 0 72 Q20 77 40 72 Q60 67 80 72 Q100 77 120 72 Q140 67 160 72 Q180 77 200 72 Q220 67 240 72 Q260 77 280 72 Q300 67 320 72 Q340 77 360 72 Q380 67 400 72 Q420 77 440 72 Q460 67 480 72 Q500 77 520 72 Q540 67 560 72 Q580 77 600 72 Q620 67 640 72 Q660 77 680 72 L680 100 L-40 100 Z"
+                fill="#3b9fd4" opacity="0.5"/>
+            </g>
+
+            <!-- Caption -->
+            <text class="cruise-text" x="320" y="96"
+              text-anchor="middle"
+              font-size="10"
+              font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+              font-style="italic"
+              fill="#374151">Cruising toward your next adventure...</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <textarea id="user-input" placeholder="Type your message..." rows="1"></textarea>
+        <button id="send-btn">&#9658;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right — Video + Insider Intel -->
+  <div class="col-intel">
+    <div class="video-panel" id="video-panel">
+      <video id="destination-video" muted playsinline controls>
+        <source src="/videos/Fort Lauderdale Cruise Terminal.mp4" type="video/mp4">
+      </video>
+    </div>
+    <div class="video-caption">
+      <div class="video-caption-title" id="video-caption-title">Port Everglades · Fort Lauderdale</div>
+      <div class="video-caption-context" id="video-caption-context">your departure port</div>
+    </div>
+    <div id="port-card-container" style="display:none; margin-top:8px;">
+      <div class="panel-label" style="color:#1d4ed8; margin-bottom:4px;">⚓ Port Info</div>
+      <div class="port-card" id="port-card"></div>
+    </div>
+    <div class="panel-label intel-label" style="margin-top:8px;">✦ Insider Intel</div>
+    <div class="intel-panel" id="intel-panel">
+      <div class="intel-placeholder">Tips and insights will appear here as your plans take shape.</div>
+    </div>
+  </div>
+
+</div>
+
+
+<script>
+  const messagesEl = document.getElementById("chat-messages");
+  const inputEl    = document.getElementById("user-input");
+  const sendBtn    = document.getElementById("send-btn");
+  let typingEl     = document.getElementById("typing-indicator");
+
+  // ── Voyage animation controller ──
+  const VOYAGE_DURATION = 42000; // ms for full journey
+  let voyageProgress = 0;
+  let voyageComplete = false;
+  let voyageRAF = null;
+  let voyageLastTs = null;
+
+  function lerp(a, b, t) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
+
+  function applyVoyageFrame() {
+    const shipT   = lerp(-170, 290, voyageProgress / 0.85);
+    const islandT = lerp(170, 0, (voyageProgress - 0.22) / 0.33);
+    document.querySelectorAll(".ship-group").forEach(g => {
+      g.style.transform = `translateX(${shipT}px)`;
+    });
+    document.querySelectorAll(".island-group").forEach(g => {
+      g.style.transform = `translateX(${islandT}px)`;
+    });
+  }
+
+  function voyageStep(ts) {
+    if (voyageLastTs == null) voyageLastTs = ts;
+    const dt = ts - voyageLastTs;
+    voyageLastTs = ts;
+    voyageProgress += dt / VOYAGE_DURATION;
+    if (voyageProgress >= 1) {
+      voyageProgress = 1;
+      voyageComplete = true;
+    }
+    applyVoyageFrame();
+    voyageRAF = requestAnimationFrame(voyageStep);
+  }
+
+  function startVoyage() {
+    if (voyageComplete) { voyageProgress = 0; voyageComplete = false; }
+    voyageLastTs = null;
+    applyVoyageFrame();
+    if (!voyageRAF) voyageRAF = requestAnimationFrame(voyageStep);
+  }
+
+  function stopVoyage() {
+    if (voyageRAF) { cancelAnimationFrame(voyageRAF); voyageRAF = null; }
+  }
+
+  applyVoyageFrame();
+
+  function getTime() {
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function appendMessage(text, role) {
+    const msg = document.createElement("div");
+    msg.className = `message ${role}`;
+    msg.innerHTML = `
+      <div class="bubble">${text.replace(/\n/g, "<br>")}</div>
+      <div class="message-time">${getTime()}</div>
+    `;
+    messagesEl.insertBefore(msg, typingEl);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+
+    appendMessage(text, "user");
+    inputEl.value = "";
+    inputEl.style.height = "auto";
+    sendBtn.disabled = true;
+    typingEl.style.display = "flex";
+    startVoyage();
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      typingEl.style.display = "none";
+      stopVoyage();
+      appendMessage(data.response || "Sorry, something went wrong.", "bot");
+      refreshProfileCard();
+      refreshAlerts();
+      refreshIntel();
+      refreshVideo();
+      refreshPortCard();
+      // Show handoff action card when Adrian captures client intent
+      if (data.handoff_action) {
+        showHandoffCard(data.handoff_action, data.advisor_name || null);
+      }
+    } catch (err) {
+      typingEl.style.display = "none";
+      stopVoyage();
+      appendMessage("Connection error — please try again.", "bot");
+    }
+
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+
+  // ── Handoff action card ─────────────────────────────────────────────────
+  function showHandoffCard(action, advisorName) {
+    const card = document.createElement("div");
+    card.className = "message bot";
+    const configs = {
+      save:               { title: "Save your profile",              label: "Save my profile",   intent: "save",               opted: false, body: "I'll save everything so you can come back whenever the timing is right. Nothing goes anywhere without your say-so." },
+      email_summary:      { title: "Send you a summary",             label: "Send my summary",   intent: "email_summary",       opted: false, body: "I'll send your cruise vision and everything we covered to your email — something to keep and refer back to." },
+      connect_peregrine:  { title: "Connect with a Peregrine advisor", label: "Connect me",     intent: "connect_peregrine",   opted: true,  body: "Peregrine works with trusted travel advisors who have up-to-the-minute pricing and availability. They'll have your full profile before the first call — no cold intake, no starting over." },
+      connect_own_advisor:{ title: advisorName ? "Send to " + advisorName : "Send to your advisor", label: "Send my profile", intent: "connect_own_advisor", opted: true, body: advisorName ? "I'll send your full profile directly to " + advisorName + " before your first call." : "I'll send your full profile directly to your advisor before your first call." },
+    };
+    const cfg = configs[action] || configs.save;
+    card.innerHTML =
+      "<div class=\"bubble\" style=\"background:#f0f9ff;border:1px solid #bae6fd;max-width:480px;\">" +
+      "<div style=\"font-size:12px;font-weight:600;color:#0369a1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;\">" + cfg.title + "</div>" +
+      "<p style=\"font-size:13px;color:#374151;line-height:1.6;margin-bottom:14px;\">" + cfg.body + "</p>" +
+      "<div style=\"display:flex;gap:8px;flex-wrap:wrap;\">" +
+      "<button class=\"hc-confirm\" style=\"background:#1a3d6e;color:white;border:none;padding:8px 18px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;\">" + cfg.label + "</button>" +
+      "<button class=\"hc-dismiss\" style=\"background:transparent;color:#6b7280;border:1px solid #d1d5db;padding:8px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;\">Not yet</button>" +
+      "</div><div class=\"hc-result\" style=\"display:none;margin-top:12px;font-size:12px;color:#374151;\"></div></div>" +
+      "<div class=\"message-time\">" + getTime() + "</div>";
+    messagesEl.appendChild(card);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    card.querySelector(".hc-confirm").addEventListener("click", async function() {
+      this.textContent = "Working\u2026"; this.disabled = true;
+      card.querySelector(".hc-dismiss").style.display = "none";
+      try {
+        const res = await fetch("/api/handoff/generate", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({client_opted_in: cfg.opted, action: cfg.intent}) });
+        const d = await res.json();
+        if (d.error) throw new Error(d.error);
+        const result = card.querySelector(".hc-result");
+        result.style.display = "block";
+        result.innerHTML = d.client_url ? "Done. <a href=\"" + d.client_url + "\" target=\"_blank\" style=\"color:#2563eb;\">Open your cruise vision page</a>" : "Saved — everything is on file.";
+        this.style.display = "none";
+      } catch(e) { this.textContent = cfg.label; this.disabled = false; card.querySelector(".hc-result").style.display = "block"; card.querySelector(".hc-result").textContent = "Something went wrong — try again."; }
+    });
+    card.querySelector(".hc-dismiss").addEventListener("click", function() { card.remove(); });
+  }
+
+  // ── Resume from handoff page ──────────────────────────────────────────────
+  const _urlParams = new URLSearchParams(window.location.search);
+  const _resumedFromHandoff = _urlParams.get("resumed") === "1";
+  if (_resumedFromHandoff) { window.history.replaceState({}, "", "/"); }
+
+  sendBtn.addEventListener("click", sendMessage);
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // Auto-resize textarea
+  inputEl.addEventListener("input", () => {
+    inputEl.style.height = "auto";
+    inputEl.style.height = inputEl.scrollHeight + "px";
+  });
+
+  // ── Start Over ────────────────────────────────────────────────────────
+  document.getElementById("start-over-btn").addEventListener("click", async () => {
+    if (!confirm("Start a new conversation? Your current session will be cleared.")) return;
+    await fetch("/api/chat/reset", { method: "POST" });
+    refreshProfileCard();
+    refreshAlerts();
+    refreshIntel();
+    refreshVideo();
+    refreshPortCard();
+    messagesEl.innerHTML = `
+      <div class="message bot" id="opening-message">
+        <div class="bubble" id="opening-bubble">
+          Hi, I'm Adrian — I'm here to help you plan your perfect cruise. Is this your first session planning a new cruise, or do we have one already started together?
+        </div>
+        <div class="message-time">Just now</div>
+      </div>
+      <div class="typing-indicator" id="typing-indicator" style="display:none;">
+        <svg class="ship-scene" viewBox="0 0 640 100" xmlns="http://www.w3.org/2000/svg">
+          <defs><clipPath id="wc2"><rect x="0" y="0" width="640" height="100"/></clipPath></defs>
+          <g class="island-group">
+            <ellipse cx="555" cy="50" rx="34" ry="22" fill="#4f9b6e"/>
+            <ellipse cx="595" cy="44" rx="30" ry="20" fill="#5fb07e"/>
+            <ellipse cx="622" cy="54" rx="26" ry="18" fill="#4f9b6e"/>
+            <path d="M470,66 Q520,58 580,62 Q615,65 640,70 L640,100 L470,100 Z" fill="#f0dba8"/>
+            <path d="M468,68 L424,73 L424,77 L468,73 Z" fill="#9c6b3c"/>
+            <rect x="430" y="73" width="3" height="14" fill="#8a5d31"/>
+            <rect x="450" y="71" width="3" height="14" fill="#8a5d31"/>
+            <g class="palm">
+              <path d="M510,66 Q514,48 522,36" stroke="#7a5230" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M522,36 Q508,30 498,38" stroke="#4f9b6e" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M522,36 Q536,32 544,40" stroke="#4f9b6e" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M522,36 Q520,24 528,16" stroke="#4f9b6e" stroke-width="4" fill="none" stroke-linecap="round"/>
+            </g>
+            <g class="palm palm-2">
+              <path d="M605,68 Q610,52 618,40" stroke="#7a5230" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <path d="M618,40 Q604,34 594,42" stroke="#5fb07e" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M618,40 Q632,36 640,44" stroke="#5fb07e" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M618,40 Q616,28 624,20" stroke="#5fb07e" stroke-width="4" fill="none" stroke-linecap="round"/>
+            </g>
+          </g>
+          <g class="ship-group">
+            <g class="ship-body">
+              <path d="M32,20 L26,10 Q30,6 38,8 L42,20 Z" fill="#274472"/>
+              <ellipse class="smoke" cx="34" cy="6" rx="5" ry="3" fill="#c4c9d0"/>
+              <rect x="6" y="30" width="92" height="10" rx="4" fill="#cfdcec"/>
+              <rect x="14" y="42" width="120" height="10" rx="4" fill="#e7eef6"/>
+              <rect x="22" y="20" width="58" height="10" rx="3" fill="#1a3d6e"/>
+              <rect x="27" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+              <rect x="36" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+              <rect x="45" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+              <rect x="54" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+              <rect x="63" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+              <rect x="72" y="23" width="5" height="4" rx="1" fill="#bfdbfe"/>
+              <path d="M2,66 L2,54 Q2,52 6,52 L122,52 Q148,52 154,64 Q146,66 128,66 Z" fill="#f5f8fb"/>
+              <rect x="2" y="63" width="150" height="3" fill="#1a3d6e"/>
+              <path d="M2,66 Q2,75 12,75 L128,75 Q146,74 154,66 Z" fill="#0f2540"/>
+            </g>
+          </g>
+          <g clip-path="url(#wc2)">
+            <path class="wave-1" d="M-40 68 Q-20 63 0 68 Q20 73 40 68 Q60 63 80 68 Q100 73 120 68 Q140 63 160 68 Q180 73 200 68 Q220 63 240 68 Q260 73 280 68 Q300 63 320 68 Q340 73 360 68 Q380 63 400 68 Q420 73 440 68 Q460 63 480 68 Q500 73 520 68 Q540 63 560 68 Q580 73 600 68 Q620 63 640 68 Q660 73 680 68 L680 100 L-40 100 Z" fill="#60b4e8" opacity="0.75"/>
+            <path class="wave-2" d="M-40 72 Q-20 67 0 72 Q20 77 40 72 Q60 67 80 72 Q100 77 120 72 Q140 67 160 72 Q180 77 200 72 Q220 67 240 72 Q260 77 280 72 Q300 67 320 72 Q340 77 360 72 Q380 67 400 72 Q420 77 440 72 Q460 67 480 72 Q500 77 520 72 Q540 67 560 72 Q580 77 600 72 Q620 67 640 72 Q660 77 680 72 L680 100 L-40 100 Z" fill="#3b9fd4" opacity="0.5"/>
+          </g>
+          <text class="cruise-text" x="320" y="96" text-anchor="middle" font-size="10" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-style="italic" fill="#374151">Cruising toward your next adventure...</text>
+        </svg>
+      </div>`;
+    typingEl = document.getElementById("typing-indicator");
+    applyVoyageFrame();
+    inputEl.focus();
+  });
+
+  // ── Returning user recognition ────────────────────────────────────────
+  async function checkReturningUser() {
+    try {
+      const res = await fetch("/api/session/check");
+      const data = await res.json();
+
+      if (data.returning) {
+        // Clear all panels — don't show prior session data until user confirms continuation
+        renderProfileCard({});
+        renderAlerts([]);
+        renderIntel([]);
+        const name = data.first_name ? data.first_name : "there";
+        document.getElementById("opening-bubble").innerHTML =
+          `Welcome back, ${name}! Would you like to continue where you left off, or start planning a new cruise?` +
+          `<br><br><button onclick="continueSession()" style="background:#1a3d6e;color:white;border:none;border-radius:8px;padding:8px 18px;font-size:14px;cursor:pointer;margin-right:8px;">Continue where I left off</button>` +
+          `<button onclick="newSession()" style="background:#f0f4f9;color:#1a3d6e;border:1px solid #c0c8d4;border-radius:8px;padding:8px 18px;font-size:14px;cursor:pointer;">Start a new cruise</button>`;
+        return true;
+      }
+    } catch (e) {
+      // Non-fatal — show default opening message
+    }
+    return false;
+  }
+
+  function continueSession() {
+    document.getElementById("opening-bubble").innerHTML =
+      "Welcome back! Let's pick up where we left off. What would you like to talk about?";
+    refreshProfileCard();
+    refreshAlerts();
+    refreshIntel();
+    refreshVideo();
+    refreshPortCard();
+    inputEl.focus();
+  }
+
+  async function newSession() {
+    await fetch("/api/session/new", { method: "POST" });
+    document.getElementById("opening-bubble").innerHTML =
+      "Hi, I'm Adrian — I'm here to help you plan your perfect cruise. Is this your first session planning a new cruise, or do we have one already started together?";
+    refreshProfileCard();
+    refreshAlerts();
+    refreshIntel();
+    refreshVideo();
+    refreshPortCard();
+    inputEl.focus();
+  }
+
+  // Sequence page-load refresh after session check resolves.
+  // If returning, panels stay blank until user clicks Continue — don't let
+  // the refresh calls race ahead and repopulate with the prior session's data.
+  // Build a short, specific recap from the saved profile so a returning
+  // visitor sees what was actually captured, not just a generic greeting.
+  function buildRecapMessage(profile) {
+    const name = profile.first_name ? profile.first_name : "there";
+    const bits = [];
+
+    const dest = profile.destination_specific || profile.destination_region;
+    if (dest) bits.push(dest);
+
+    const timing = [profile.travel_month, profile.travel_year].filter(Boolean).join(" ");
+    if (timing) bits.push(timing);
+
+    if (profile.duration_preference) bits.push(profile.duration_preference);
+
+    let party = "";
+    if (profile.party_composition) {
+      party = String(profile.party_composition).replace(/_/g, " ");
+    } else if (profile.party_size) {
+      party = `${profile.party_size} traveler${profile.party_size == 1 ? "" : "s"}`;
+    }
+    if (party) bits.push(party);
+
+    let recap = `Welcome back, ${name}! `;
+    if (bits.length) {
+      recap += `Here's where we left off: ${bits.join(", ")}.`;
+    } else {
+      recap += `I've got everything we covered — your profile is right where you left it.`;
+    }
+
+    const shortlist = profile.cruise_line_shortlist;
+    if (Array.isArray(shortlist) && shortlist.length) {
+      const names = shortlist.slice(0, 3).map(l => l.name).join(", ");
+      recap += ` We'd identified ${names} as good fits so far.`;
+    }
+
+    recap += ` What would you like to add or change?`;
+    return recap;
+  }
+
+  checkReturningUser().then(returning => {
+    if (_resumedFromHandoff && returning) {
+      fetch("/api/profile").then(r => r.json()).then(data => {
+        document.getElementById("opening-bubble").innerHTML = buildRecapMessage(data.profile || {});
+      }).catch(() => {
+        document.getElementById("opening-bubble").innerHTML =
+          "Welcome back! I've got everything we covered — your profile is right where you left it. What would you like to add or change?";
+      });
+      refreshProfileCard(); refreshAlerts(); refreshIntel(); refreshVideo(); refreshPortCard();
+      inputEl.focus();
+    } else if (!returning) {
+      refreshProfileCard();
+      refreshAlerts();
+      refreshIntel();
+      refreshVideo();
+      refreshPortCard();
+    }
+  });
+
+  // ── Live profile card ────────────────────────────────────────────────────
+  // Narrative slots — rendered as warm voice blocks at the top of the panel.
+  // generated_narrative is the Sonnet-written portrait paragraph — hero position.
+  // The others appear below it as supporting context when populated.
+  const NARRATIVE_FIELDS = [
+    { key: "generated_narrative",         label: null },  // no label — stands alone
+    { key: "what_would_make_it_perfect",  label: "What has to go right" },
+    { key: "what_they_fear_wont_work",    label: "Worth keeping in mind" },
+    { key: "dream_image",                 label: "How they picture it" },
+  ];
+
+  // Structured fact slots — only confirmed facts, nothing inferred.
+  // has_children excluded (false/No is noise). destination_open excluded (noise).
+  const PROFILE_FIELDS = [
+    { key: "first_name",            label: "Name" },
+    { key: "party_size",            label: "Travelers" },
+    { key: "party_composition",     label: "Party" },
+    { key: "trip_occasion",         label: "Occasion" },
+    { key: "emotional_driver",      label: "What's driving this" },
+    { key: "trip_significance",     label: "Significance" },
+    { key: "children_ages",         label: "Children's ages" },
+    { key: "mobility_needs",        label: "Accessibility" },
+    { key: "dietary_requirements",  label: "Dietary needs" },
+    { key: "discount_flags",        label: "Discounts" },
+    { key: "destination_region",    label: "Destination" },
+    { key: "destination_specific",  label: "What draws them" },
+    { key: "travel_month",          label: "Timing" },
+    { key: "travel_year",           label: "Year" },
+    { key: "date_flexibility",      label: "Date flexibility" },
+    { key: "duration_preference",   label: "Duration" },
+    { key: "cruise_experience",     label: "Cruise history" },
+    { key: "lines_sailed",          label: "Lines sailed" },
+    { key: "atmosphere_preference", label: "Atmosphere" },
+    { key: "ship_size_preference",  label: "Ship size" },
+    { key: "onboard_priorities",    label: "Priorities onboard" },
+    { key: "dining_relationship",   label: "Dining matters" },
+    { key: "sea_day_preference",    label: "Sea days" },
+    { key: "pace_preference",       label: "Pace" },
+    { key: "excursion_style",       label: "Shore excursions" },
+    { key: "port_interests",        label: "Port interests" },
+    { key: "interests",             label: "Interests" },
+    { key: "priority_excursions",   label: "Must-dos" },
+    { key: "home_airport",          label: "Home airport" },
+    { key: "home_city",             label: "Home city" },
+    { key: "departing_from",        label: "Boarding port" },
+    { key: "flight_comfort_preferences", label: "Flight preference" },
+    { key: "connectivity_needs",    label: "Connectivity" },
+    { key: "airline_preference",    label: "Airline" },
+    { key: "hotel_brand_preference", label: "Hotel brand" },
+    { key: "hotel_loyalty",         label: "Hotel loyalty" },
+    { key: "travel_insurance",      label: "Insurance" },
+    { key: "cabin_preference",      label: "Cabin type" },
+    { key: "budget_tier",           label: "Budget range" },
+    { key: "budget_flexibility",    label: "Budget flexibility" },
+    { key: "value_psychology",      label: "Value approach" },
+  ];
+
+  // Human-readable display mappings for enum values
+  const LABEL_MAP = {
+    // Emotional driver
+    "escape":       "Escape & unwind",
+    "adventure":    "Adventure",
+    "connection":   "Connection",
+    "status":       "Quality & prestige",
+    "legacy":       "Legacy",
+    "discovery":    "Discovery & culture",
+    "celebration":  "Celebration",
+    // Trip significance — suppress "routine", it reads as dismissive
+    "routine":      null,
+    "meaningful":   "Meaningful trip",
+    "milestone":    "Milestone trip",
+    "once_in_a_lifetime": "Once in a lifetime",
+    // Planning stage
+    "just_dreaming":       "Exploring ideas",
+    "actively_researching":"Actively researching",
+    "ready_to_plan":       "Ready to plan",
+    "ready_to_book":       "Ready to book",
+    // Atmosphere
+    "lively_social":    "Lively & social",
+    "relaxed_refined":  "Relaxed & refined",
+    "somewhere_between":"Somewhere between",
+    // Date flexibility
+    "firm":                 "Dates are set",
+    "flexible_within_season":"Flexible within season",
+    "fully_open":           "Fully open",
+    // Budget flexibility
+    "firm_ceiling":     "Firm ceiling",
+    "some_flexibility": "Some flexibility",
+    "starting_point":   "Starting point",
+    "find_the_money":   "Find the money for the right trip",
+    // Value psychology
+    "value_hunter":     "Wants the best deal",
+    "value_maximizer":  "Best experience for budget",
+    "experience_investor":"Experience first",
+    // Dining relationship
+    "fuel":        "Good & reliable",
+    "priority":    "Important differentiator",
+    "centerpiece": "The whole point",
+    // Sea day preference
+    "love_them":      "Loves sea days",
+    "tolerate_them":  "Tolerates sea days",
+    "minimize_them":  "Wants port every day",
+    // Pace
+    "intensive": "Intensive",
+    "selective": "Selective",
+    "relaxed":   "Relaxed",
+    // Excursion style
+    "ship_booked": "Cruise line excursions",
+    "independent": "Independent",
+    "mixed":       "Mix of both",
+    "no_excursions":"Ship or port only",
+    // Entertainment relationship
+    "always_there": "Every night",
+    "occasional":   "Occasional",
+    "never":        "Not a priority",
+    // Activity level
+    "high":     "Very active",
+    "moderate": "Moderate",
+    "low":      "Low-key",
+    // Connectivity
+    "full_disconnect":       "Full disconnect",
+    "occasional_check_in":   "Occasional check-in",
+    "work_reachable":        "Needs to stay reachable",
+    "content_creator":       "Content creator",
+    "medical_device_dependent":"Medical device connectivity needed",
+    // Trip occasion
+    "anniversary":      "Anniversary",
+    "honeymoon":        "Honeymoon",
+    "birthday":         "Birthday",
+    "retirement":       "Retirement",
+    "bucket_list":      "Bucket list",
+    "health_motivation":"Health motivation",
+    "empty_nest":       "Empty nest",
+    "gift":             "Gift trip",
+    "family_reunion":   "Family reunion",
+    "graduation":       "Graduation",
+    "new_baby":         "New baby celebration",
+    "routine_vacation": null,
+    "other":            "Special occasion",
+    // Destination depth
+    "deep_few":   "Fewer ports, more time each",
+    "broad_many": "More ports, even briefly",
+    "balanced":   "Balanced",
+    // Ship size
+    "boutique": "Boutique (under 500)",
+    "small":    "Small (500–1,500)",
+    "mid":      "Mid-size (1,500–2,500)",
+    "large":    "Large (2,500–4,000)",
+    "mega":     "Mega (4,000+)",
+    // Travel mode
+    "flying":      "Flying",
+    "driving":     "Driving",
+    "train":       "Train",
+    "combination": "Combination",
+    // Insurance
+    "have_policy": "Has a policy",
+    "no_policy":   "No policy yet",
+    "not_sure":    "Not sure",
+    // Advisor relationship
+    "full_handoff":       "Full handoff",
+    "collaborative":      "Collaborative",
+    "educated_consumer":  "Educated consumer",
+    "efficient_executor": "Just book it",
+    // Drink/internet intent
+    "definitely":     "Definitely",
+    "probably":       "Probably",
+    "probably_not":   "Probably not",
+    "definitely_not": "Definitely not",
+    "want_to_analyze":"Wants to analyze",
+    // Drinking profile
+    "non_drinker": "Non-drinker",
+    "enthusiast":  "Enthusiast",
+    // Photography
+    "fully_present":      "Fully present",
+    "casual_documenter":  "Casual",
+    "serious_photographer":"Serious photographer",
+    "content_creator":    "Content creator",
+    // Formality
+    "casual_throughout":  "Casual throughout",
+    "smart_casual":       "Smart casual",
+    "occasional_formal":  "Enjoys occasional formal",
+    "love_formal":        "Loves formal nights",
+    // Casino
+    "important":   "Important",
+    "nice_to_have":"Nice to have",
+    "no_preference":"No preference",
+    "prefer_none": "Prefers no casino",
+    // Smoking
+    "not_sensitive":    "Not sensitive",
+    "prefer_smoke_free":"Prefers smoke-free",
+    "must_be_smoke_free":"Must be smoke-free",
+    // Duration
+    "short_under_7":    "Under 7 nights",
+    "7_nights":         "7 nights",
+    "10_nights":        "10 nights",
+    "14_nights":        "14 nights",
+    "extended_over_14": "14+ nights",
+    // Flight class
+    "economy_fine":              "Economy is fine",
+    "premium_economy_preferred": "Premium economy",
+    "business_class_preferred":  "Business class",
+    "first_class_required":      "First class",
+    // Travel experience level
+    "novice":       "New to travel",
+    "intermediate": "Some international experience",
+    "experienced":  "Frequent traveler",
+    "expert":       "Expert traveler",
+    // Travel personality
+    "planner":      "Planner",
+    "spontaneous":  "Spontaneous",
+    "delegator":    "Delegator",
+    "collaborator": "Collaborator",
+    // Cabin
+    "interior":   "Interior",
+    "oceanview":  "Oceanview",
+    "balcony":    "Balcony",
+    "suite":      "Suite",
+    // Pre-cruise hotel
+    "luxury":    "Luxury",
+    "mid_range": "Mid-range",
+    "budget":    "Budget",
+    // Ground transport
+    "private_car":      "Private car",
+    "cruise_transfer":  "Cruise transfer",
+    "public_transport": "Public transport",
+    "rental_car":       "Rental car",
+    "no_preference":    "No preference",
+    // Embarkation timing
+    "early_boarder":  "Early boarder",
+    "midday":         "Midday",
+    "relaxed_late":   "Relaxed arrival",
+    // Budget tier
+    "budget_under_2k":"Under $2,000 pp",
+    "budget_2k_4k":   "$2,000–$4,000 pp",
+    "budget_4k_7k":   "$4,000–$7,000 pp",
+    "budget_7k_plus": "$7,500+ pp",
+    // Payment
+    "pay_in_full":           "Pay in full",
+    "deposit_and_installments":"Deposit + installments",
+    // Spa
+    "daily_visitor":  "Daily visitor",
+    "occasional_treat":"Occasional treat",
+  };
+
+  function formatVal(v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v === "boolean") return v ? "Yes" : null; // false values are noise — suppress them
+    if (Array.isArray(v)) {
+      const mapped = v.map(item => {
+        const key = String(item).toLowerCase().trim();
+        if (key in LABEL_MAP) return LABEL_MAP[key];
+        return item;
+      }).filter(item => item !== null);
+      return mapped.length > 0 ? mapped.join(", ") : null;
+    }
+    const key = String(v).toLowerCase().trim();
+    if (key in LABEL_MAP) return LABEL_MAP[key]; // returns null for suppressed values
+    return String(v);
+  }
+
+  function renderProfileCard(profile) {
+    const card = document.getElementById("profile-card");
+    const empty = document.getElementById("profile-card-empty");
+
+    // Clear everything except the empty placeholder
+    card.querySelectorAll(".profile-card-row, .profile-narrative, .profile-facts-divider").forEach(el => el.remove());
+
+    let totalCount = 0;
+
+    // ── Narrative section — warm voice blocks ──────────────────────────────
+    const narrativeItems = NARRATIVE_FIELDS.filter(f => formatVal(profile[f.key]) !== null);
+    if (narrativeItems.length > 0) {
+      totalCount += narrativeItems.length;
+      const narrativeBlock = document.createElement("div");
+      narrativeBlock.className = "profile-narrative";
+      for (const field of narrativeItems) {
+        const val = formatVal(profile[field.key]);
+        const item = document.createElement("div");
+        item.className = field.label ? "profile-narrative-item" : "profile-narrative-hero";
+        item.innerHTML = field.label
+          ? `<span class="narrative-label">${field.label}</span>${val}`
+          : val;
+        narrativeBlock.appendChild(item);
+      }
+      card.insertBefore(narrativeBlock, card.firstChild);
+
+      // Divider between narrative and facts
+      const divider = document.createElement("div");
+      divider.className = "profile-facts-divider";
+      divider.textContent = "Trip details";
+      card.appendChild(divider);
+    }
+
+    // ── Structured facts section ───────────────────────────────────────────
+    for (const field of PROFILE_FIELDS) {
+      const val = formatVal(profile[field.key]);
+      if (val === null) continue;
+      totalCount++;
+      const row = document.createElement("div");
+      row.className = "profile-card-row";
+      row.innerHTML = `<span class="profile-card-key">${field.label}</span><span class="profile-card-val">${val}</span>`;
+      card.appendChild(row);
+    }
+
+    empty.style.display = totalCount === 0 ? "block" : "none";
+  }
+
+  async function refreshProfileCard() {
+    try {
+      const res = await fetch("/api/profile");
+      const data = await res.json();
+      renderProfileCard(data.profile || {});
+    } catch {
+      // Non-fatal — card stays as-is
+    }
+  }
+
+  // ── Card copy helper ─────────────────────────────────────────────────────
+  function makeCopyBtn(headline, body) {
+    const btn = document.createElement("button");
+    btn.className = "card-copy-btn";
+    btn.title = "Copy to clipboard";
+    btn.textContent = "⎘";
+    btn.addEventListener("click", () => {
+      navigator.clipboard.writeText(`${headline}\n\n${body}`).then(() => {
+        btn.textContent = "✓";
+        btn.classList.add("copied");
+        setTimeout(() => { btn.textContent = "⎘"; btn.classList.remove("copied"); }, 1800);
+      });
+    });
+    return btn;
+  }
+
+  // ── Alerts panel ──────────────────────────────────────────────────────────
+  function renderAlerts(alerts) {
+    const panel = document.getElementById("alerts-panel");
+    panel.innerHTML = "";
+    if (!alerts || alerts.length === 0) {
+      panel.innerHTML = '<div class="alert-placeholder">Decision-critical alerts will appear here as your conversation progresses.</div>';
+      return;
+    }
+    for (const alert of alerts) {
+      const card = document.createElement("div");
+      card.className = "alert-card";
+      card.innerHTML = `<div class="alert-card-headline">⚠ ${alert.headline}</div><div class="alert-card-body">${alert.body}</div>`;
+      card.appendChild(makeCopyBtn(alert.headline, alert.body));
+      panel.appendChild(card);
+    }
+  }
+
+  async function refreshAlerts() {
+    try {
+      const res = await fetch("/api/alerts");
+      const data = await res.json();
+      renderAlerts(data.alerts || []);
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  // ── Intel panel ───────────────────────────────────────────────────────────
+  function renderIntel(cards) {
+    const panel = document.getElementById("intel-panel");
+    panel.innerHTML = "";
+    if (!cards || cards.length === 0) {
+      panel.innerHTML = '<div class="intel-placeholder">Tips and insights will appear here as your plans take shape.</div>';
+      return;
+    }
+    for (const card of cards) {
+      const el = document.createElement("div");
+      el.className = "intel-card";
+      el.innerHTML = `<div class="intel-card-headline">✦ ${card.headline}</div><div class="intel-card-body">${card.body}</div>`;
+      el.appendChild(makeCopyBtn(card.headline, card.body));
+      panel.appendChild(el);
+    }
+  }
+
+  // ── Port card ─────────────────────────────────────────────────────────────
+  function renderPortCard(port) {
+    const container = document.getElementById("port-card-container");
+    const card      = document.getElementById("port-card");
+    if (!port) { container.style.display = "none"; return; }
+
+    const accessMap = { dock: "Docks directly", tender: "Tender required", both: "Dock or tender" };
+    const tenderMap = { always: "Always", sometimes: "Sometimes", weather_dependent: "Weather dependent" };
+    const modeMap   = { walk: "Walk", shuttle: "Shuttle", taxi: "Taxi", train: "Train", bus: "Bus", ferry: "Ferry", mixed: "Mixed" };
+
+    let html = `<div class="port-card-name">⚓ ${port.name}</div>`;
+
+    if (port.access_type) {
+      let accessText = accessMap[port.access_type] || port.access_type;
+      if (port.tender_condition && port.access_type !== "dock") {
+        accessText += ` (${tenderMap[port.tender_condition] || port.tender_condition})`;
+      }
+      html += `<div class="port-card-row"><span class="port-card-label">Access</span><span>${accessText}</span></div>`;
+    }
+
+    if (port.transit_mins) {
+      const mode = port.transit_mode ? ` by ${modeMap[port.transit_mode] || port.transit_mode}` : "";
+      html += `<div class="port-card-row"><span class="port-card-label">To town</span><span>${port.transit_mins} min${mode}</span></div>`;
+    }
+
+    if (port.transit_note) {
+      html += `<div class="port-card-row"><span class="port-card-label"></span><span style="color:#475569">${port.transit_note}</span></div>`;
+    }
+
+    if (port.best_for) {
+      html += `<div class="port-card-row"><span class="port-card-label">Best for</span><span>${port.best_for}</span></div>`;
+    }
+
+    if (port.advisor_note) {
+      html += `<div class="port-card-note">${port.advisor_note}</div>`;
+    }
+
+    card.innerHTML = html;
+    container.style.display = "block";
+  }
+
+  async function refreshPortCard() {
+    try {
+      const res  = await fetch("/api/port");
+      const data = await res.json();
+      renderPortCard(data.port);
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  async function refreshIntel() {
+    try {
+      const res = await fetch("/api/intel");
+      const data = await res.json();
+      renderIntel(data.intel || []);
+    } catch {
+      // Non-fatal
+    }
+  }
+
+  async function refreshVideo() {
+    try {
+      const res = await fetch("/api/video");
+      const data = await res.json();
+      const videoEl  = document.getElementById("destination-video");
+      const titleEl  = document.getElementById("video-caption-title");
+      const ctxEl    = document.getElementById("video-caption-context");
+      const sourceEl = videoEl.querySelector("source");
+      const vf = data.video && data.video.filename;
+      if (!vf) return;
+      const newSrc = "/videos/" + vf;
+      if (sourceEl.getAttribute("src") !== newSrc) {
+        sourceEl.setAttribute("src", newSrc);
+        videoEl.load();
+        videoEl.play().catch(() => {});
+      }
+      // Show/hide the video panel based on whether a video is available
+      const panel = document.getElementById("video-panel");
+      const caption = document.querySelector(".video-caption");
+      if (data.video === null) {
+        if (panel)   panel.style.display   = "none";
+        if (caption) caption.style.display = "none";
+      } else {
+        if (panel)   panel.style.display   = "";
+        if (caption) caption.style.display = "";
+        if (titleEl) titleEl.textContent = data.video.title   || "";
+        if (ctxEl)   ctxEl.textContent   = data.video.context || "";
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
+
+</script>
+</body>
+</html>
