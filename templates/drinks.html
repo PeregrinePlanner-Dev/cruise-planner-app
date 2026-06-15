@@ -437,7 +437,19 @@
     function setupReferralUI() {
       const ref = new URLSearchParams(window.location.search).get("ref");
       if (ref === "planner") {
-        document.getElementById("back-link").style.display = "inline-block";
+        const backLink = document.getElementById("back-link");
+        backLink.style.display = "inline-block";
+        backLink.addEventListener("click", function (e) {
+          e.preventDefault();
+          // This page opens in a new tab from the planner. Close this tab
+          // to return to the original planner tab rather than loading a
+          // second planner instance here. Fall back to navigating "/" if
+          // the tab can't be closed (e.g. wasn't opened via script).
+          window.close();
+          setTimeout(function () {
+            window.location.href = "/";
+          }, 300);
+        });
       } else {
         document.getElementById("intro-card").style.display = "block";
       }
