@@ -141,6 +141,11 @@
       margin-bottom: 10px;
     }
 
+    .intro-card {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+    }
+
     .verify-note {
       font-size: 11px;
       color: #94a3b8;
@@ -154,7 +159,7 @@
   <div class="header">
     Cruise Drink Package Calculator
     <span>See whether a beverage package is likely to pay for itself</span>
-    <a class="back-link" href="/">&larr; Back to Cruise Planner</a>
+    <a class="back-link" href="/" id="back-link" style="display:none;">&larr; Back to Cruise Planner</a>
   </div>
 
   <div class="wrap">
@@ -235,6 +240,18 @@
     <div class="verify-note">
       Prices shown are typical ranges and change regularly — your travel advisor will confirm
       current package pricing for your specific sailing.
+    </div>
+
+    <div class="card intro-card" id="intro-card" style="display:none;">
+      <div class="panel-label">About Peregrine Planner</div>
+      <p style="font-size:13px; line-height:1.6; color:#475569;">
+        This drink calculator is one of the free tools from <strong>Peregrine Planner</strong> —
+        an AI assistant that helps you find the cruise line, ship, and itinerary that actually
+        fit your style, then connects you with a travel advisor to book.
+      </p>
+      <a class="btn" style="display:block; text-align:center; text-decoration:none; margin-top:12px;" href="/">
+        Start Planning My Cruise &rarr;
+      </a>
     </div>
 
   </div>
@@ -402,8 +419,18 @@
       result.innerHTML = html;
     }
 
+    function setupReferralUI() {
+      const ref = new URLSearchParams(window.location.search).get("ref");
+      if (ref === "planner") {
+        document.getElementById("back-link").style.display = "inline-block";
+      } else {
+        document.getElementById("intro-card").style.display = "block";
+      }
+    }
+
     loadPackages();
     wireResetOnChange();
+    setupReferralUI();
   </script>
 </body>
 </html>
