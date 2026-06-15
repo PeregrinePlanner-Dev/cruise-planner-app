@@ -724,7 +724,7 @@
   <div class="col-intel">
     <div class="video-panel" id="video-panel">
       <video id="destination-video" muted playsinline controls>
-        <source src="/videos/Fort Lauderdale Cruise Terminal.mp4" type="video/mp4">
+        <source src="https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev/cruise-terminals/port-everglades-terminal-3.mp4" type="video/mp4">
       </video>
     </div>
     <div class="video-caption">
@@ -1554,7 +1554,7 @@
       const sourceEl = videoEl.querySelector("source");
       const vf = data.video && data.video.filename;
       if (!vf) return;
-      const newSrc = "/videos/" + vf;
+      const newSrc = (data.video && data.video.url) || "/videos/" + vf;
       if (sourceEl.getAttribute("src") !== newSrc) {
         sourceEl.setAttribute("src", newSrc);
         videoEl.load();
@@ -1571,12 +1571,3 @@
         if (caption) caption.style.display = "";
         if (titleEl) titleEl.textContent = data.video.title   || "";
         if (ctxEl)   ctxEl.textContent   = data.video.context || "";
-      }
-    } catch {
-      // Non-fatal
-    }
-  }
-
-</script>
-</body>
-</html>

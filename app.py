@@ -27,6 +27,9 @@ SUPABASE_KEY   = os.environ.get("SUPABASE_KEY")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 ADVISOR_EMAIL  = os.environ.get("ADVISOR_EMAIL", "arrowroot56@gmail.com")
 
+# ── Cloudflare R2 video hosting ───────────────────────────────────────────
+R2_BASE = "https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev"
+
 SB_HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -1592,7 +1595,8 @@ def video_route():
     """Return the video based on departing_from, home_airport, or destination_region.
     Queries Supabase videos table. Falls back to Port Everglades."""
     default_out = {
-        "filename": "cruise-terminals/port-everglades-terminal-2.mp4",
+        "filename": "cruise-terminals/port-everglades-terminal-3.mp4",
+        "url":      R2_BASE + "/cruise-terminals/port-everglades-terminal-3.mp4",
         "title": "Port Everglades \u00b7 Fort Lauderdale",
         "context": "your departure port",
     }
@@ -1622,8 +1626,16 @@ def video_route():
         def normalize(v):
             if not v:
                 return None
+            fp = v.get("file_path") or v.get("filename") or ""
+            if fp.startswith("https://"):
+                url = fp
+            elif fp.startswith("cruise-terminals/"):
+                url = R2_BASE + "/" + fp
+            else:
+                url = "/videos/" + fp
             return {
-                "filename": v.get("file_path") or v.get("filename"),
+                "filename": fp,
+                "url":      url,
                 "title":    v.get("label")     or v.get("title"),
                 "context":  v.get("context"),
             }
