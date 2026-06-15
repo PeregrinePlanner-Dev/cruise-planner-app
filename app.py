@@ -3145,4 +3145,23 @@ def dev_flush_sessions():
         return jsonify({"error": "Unauthorized"}), 403
     try:
         resp = requests.delete(
-            f"{SUPABASE_URL}/rest/v1/voya
+            f"{SUPABASE_URL}/rest/v1/voyage_profiles",
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/json",
+            },
+            params={"session_id": "neq.___never___"},
+            timeout=10,
+        )
+        if resp.ok:
+            return jsonify({"deleted": True, "status": resp.status_code})
+        return jsonify({"error": resp.text}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=debug_mode, host="0.0.0.0", port=port)
