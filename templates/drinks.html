@@ -255,7 +255,7 @@
 
     function populateLines() {
       const lineSelect = document.getElementById("line-select");
-      const lines = [...new Set(packages.map(p => p.cruise_line))];
+      const lines = [...new Set(packages.map(p => p.cruise_line))].sort((a, b) => a.localeCompare(b));
       lineSelect.innerHTML = lines.map(l => `<option value="${l}">${l}</option>`).join("");
       lineSelect.addEventListener("change", populatePackages);
       populatePackages();
@@ -303,6 +303,19 @@
       setBox("caption-box", pkg && pkg.caption);
       setBox("perk-box", pkg && pkg.perk_notes ? `What else is included: ${pkg.perk_notes}` : null);
       setBox("additional-box", pkg && pkg.additional_notes);
+      resetResult();
+    }
+
+    function resetResult() {
+      const result = document.getElementById("result");
+      result.innerHTML = "Settings changed — hit Calculate Daily Value to see updated results.";
+    }
+
+    function wireResetOnChange() {
+      ["cocktail-price", "cocktail-qty", "beer-price", "beer-qty",
+       "wine-price", "wine-qty", "coffee-price", "coffee-qty"].forEach(id => {
+        document.getElementById(id).addEventListener("input", resetResult);
+      });
     }
 
     function runAnalysis() {
@@ -390,6 +403,7 @@
     }
 
     loadPackages();
+    wireResetOnChange();
   </script>
 </body>
 </html>
