@@ -383,6 +383,7 @@ MORE INFERENCE TRAPS -- do not capture these:
 - arrival_timing: only capture if the user stated when they plan to arrive relative to the ship. null if not mentioned.
 - specialty_dining_preference: only if user expressed preference for specialty restaurants.
 - future_cruise_deposit_interest: only if user asked about booking a future cruise deposit onboard.
+- departing_from / departure_city: the embarkation/boarding port. NEVER capture a port the ASSISTANT proposed or suggested as an option (e.g. "Galveston is the closest option" or "you could sail from Miami or Fort Lauderdale"). Only capture if the USER explicitly confirmed or chose that port themselves (e.g. "yes let's do Galveston", "Galveston works", "we'll sail from Miami"). Mentioning a home city or a city the user is driving from/through is NOT a departure port confirmation. If the assistant offered choices and the user has not yet picked one, leave this null.
 
 NORMALIZATION RULES:
 - experience_tier: mainstream / premium / luxury / expedition
@@ -3144,23 +3145,4 @@ def dev_flush_sessions():
         return jsonify({"error": "Unauthorized"}), 403
     try:
         resp = requests.delete(
-            f"{SUPABASE_URL}/rest/v1/voyage_profiles",
-            headers={
-                "apikey": SUPABASE_KEY,
-                "Authorization": f"Bearer {SUPABASE_KEY}",
-                "Content-Type": "application/json",
-            },
-            params={"session_id": "neq.___never___"},
-            timeout=10,
-        )
-        if resp.ok:
-            return jsonify({"deleted": True, "status": resp.status_code})
-        return jsonify({"error": resp.text}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=debug_mode, host="0.0.0.0", port=port)
+            f"{SUPABASE_URL}/rest/v1/voya
