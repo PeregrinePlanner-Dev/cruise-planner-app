@@ -384,6 +384,7 @@ MORE INFERENCE TRAPS -- do not capture these:
 - specialty_dining_preference: only if user expressed preference for specialty restaurants.
 - future_cruise_deposit_interest: only if user asked about booking a future cruise deposit onboard.
 - departing_from / departure_city: the embarkation/boarding port. NEVER capture a port the ASSISTANT proposed or suggested as an option (e.g. "Galveston is the closest option" or "you could sail from Miami or Fort Lauderdale"). Only capture if the USER explicitly confirmed or chose that port themselves (e.g. "yes let's do Galveston", "Galveston works", "we'll sail from Miami"). Mentioning a home city or a city the user is driving from/through is NOT a departure port confirmation. If the assistant offered choices and the user has not yet picked one, leave this null.
+- travel_mode: NEVER infer from the assistant's suggestions or from a home city/region alone. "We're in Austin" or "we live near Houston" is NOT a travel_mode confirmation — it only tells you where they live. Only capture if the USER explicitly stated how they're getting to the ship (e.g. "we'll drive down", "we're flying in", "we'll probably fly"). If the assistant proposed driving/flying as an option (e.g. "since you're close, you could drive to Galveston") and the user did not explicitly confirm that mode, leave travel_mode null.
 
 NORMALIZATION RULES:
 - experience_tier: mainstream / premium / luxury / expedition
@@ -1962,6 +1963,46 @@ SEA_DAY_PREFERENCE_LABELS = {
     "minimize_them": "Prefers to minimize sea days",
 }
 
+EXPERIENCE_TIER_LABELS = {
+    "mainstream": "Mainstream",
+    "premium":    "Premium",
+    "luxury":     "Luxury",
+    "expedition": "Expedition",
+}
+
+SHIP_SIZE_PREFERENCE_LABELS = {
+    "boutique": "Boutique ship",
+    "small":    "Small ship",
+    "mid":      "Mid-size ship",
+    "large":    "Large ship",
+    "mega":     "Mega ship",
+}
+
+ATMOSPHERE_PREFERENCE_LABELS = {
+    "lively_social":      "Lively & social",
+    "relaxed_refined":    "Relaxed & refined",
+    "somewhere_between":  "A bit of both",
+}
+
+PACE_PREFERENCE_LABELS = {
+    "intensive": "Pack it in — see everything",
+    "selective": "A mix of activity and downtime",
+    "relaxed":   "Easygoing, low-key",
+}
+
+DINING_RELATIONSHIP_LABELS = {
+    "fuel":       "Dining is just fuel",
+    "priority":   "Good food is a priority",
+    "centerpiece": "Dining is a highlight of the trip",
+}
+
+EXCURSION_STYLE_LABELS = {
+    "ship_booked":  "Prefers ship-booked excursions",
+    "independent":  "Prefers exploring independently",
+    "mixed":        "Mix of ship excursions and independent exploring",
+    "no_excursions": "Not planning excursions",
+}
+
 def _enum_label(val, mapping):
     """Map a normalized enum value to a display label, falling back to a
     title-cased version of the raw value (so unmapped enums never leak as
@@ -2660,15 +2701,46 @@ def render_client_page(rec):
     party = _enum_label(profile.get("party_composition"), PARTY_COMPOSITION_LABELS) or "Your group"
     timeframe_display = f" &mdash; {timeframe}" if timeframe else ""
 
+    # Extra "Trip at a Glance" rows — only real, captured profile data, no LLM.
+    extra_rows = []
+    if profile.get("departing_from"):
+        extra_rows.append(("Sailing from", profile["departing_from"]))
+    if profile.get("destination_specific"):
+        extra_rows.append(("Where you're drawn to", profile["destination_specific"]))
+    if profile.get("trip_occasion"):
+        extra_rows.append(("Occasion", _enum_label(profile.get("trip_occasion"), {})))
+    shortlist = profile.get("cruise_line_shortlist") or []
+    if shortlist:
+        names = [r.get("name") for r in shortlist[:3] if r.get("name")]
+        if names:
+            extra_rows.append(("Lines we're considering", ", ".join(names)))
+    if profile.get("experience_tier"):
+        extra_rows.append(("Cruise style", _enum_label(profile.get("experience_tier"), EXPERIENCE_TIER_LABELS)))
+    if profile.get("ship_size_preference"):
+        extra_rows.append(("Ship size", _enum_label(profile.get("ship_size_preference"), SHIP_SIZE_PREFERENCE_LABELS)))
+    if profile.get("atmosphere_preference"):
+        extra_rows.append(("Onboard vibe", _enum_label(profile.get("atmosphere_preference"), ATMOSPHERE_PREFERENCE_LABELS)))
+    if profile.get("pace_preference"):
+        extra_rows.append(("Pace", _enum_label(profile.get("pace_preference"), PACE_PREFERENCE_LABELS)))
+    if profile.get("dining_relationship"):
+        extra_rows.append(("Dining", _enum_label(profile.get("dining_relationship"), DINING_RELATIONSHIP_LABELS)))
+    if profile.get("excursion_style"):
+        extra_rows.append(("Excursions", _enum_label(profile.get("excursion_style"), EXCURSION_STYLE_LABELS)))
+
+    extra_rows_html = "".join(
+        f"    <div class='trip-row'><span class='trip-label'>{label}</span><span class='trip-value'>{value}</span></div>\n"
+        for label, value in extra_rows
+    )
+
     return (
         "<!DOCTYPE html>\n<html lang='en'><head><meta charset='UTF-8'>\n"
         f"<title>{first}'s Cruise Vision</title>\n"
         "<style>\n"
         "*{box-sizing:border-box;margin:0;padding:0}\n"
         "body{font-family:Georgia,serif;font-size:15px;color:#1a1a1a;background:#f7f5f0;min-height:100vh}\n"
-        ".hero{background:linear-gradient(135deg,#1a3a4a 0%,#0d2233 100%);padding:48px 40px 44px;text-align:center;color:white}\n"
+        ".hero{background:linear-gradient(135deg,#1a3a4a 0%,#0d2233 100%);padding:40px 40px 44px;text-align:center;color:white}\n"
         ".hero-logo{font-size:12px;letter-spacing:4px;text-transform:uppercase;color:#c9a96e;margin-bottom:16px}\n"
-        ".hero-logo img{height:48px;width:auto;display:block;margin:0 auto 12px}\n"
+        ".hero-logo img{height:96px;width:auto;display:block;margin:0 auto 14px}\n"
         ".hero h1{font-size:28px;font-weight:normal;margin-bottom:8px}\n"
         ".hero p{font-size:14px;color:#a8bcc8;max-width:480px;margin:0 auto;line-height:1.6}\n"
         ".resume-btn{display:inline-block;margin-top:24px;padding:11px 28px;border:1px solid rgba(201,169,110,0.55);border-radius:6px;color:#c9a96e;font-size:12px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;transition:background 0.2s,border-color 0.2s}\n"
@@ -2704,6 +2776,7 @@ def render_client_page(rec):
         f"    <div class='trip-row'><span class='trip-label'>Timeframe</span><span class='trip-value'>{timeframe or 'To be confirmed'}</span></div>\n"
         f"    <div class='trip-row'><span class='trip-label'>Duration</span><span class='trip-value'>{dur}</span></div>\n"
         f"    <div class='trip-row'><span class='trip-label'>Party</span><span class='trip-value'>{party}</span></div>\n"
+        f"{extra_rows_html}"
         "  </div>\n"
         "  <div class='card'>\n"
         "    <div class='card-title'>Your Planning Checklist</div>\n"

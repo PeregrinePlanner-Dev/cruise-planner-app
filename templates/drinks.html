@@ -17,10 +17,22 @@
     .header {
       background: #1a3d6e;
       color: white;
-      padding: 14px 24px;
+      padding: 8px 24px;
       font-size: 17px;
       font-weight: 600;
       letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .header-logo {
+      height: 64px;
+      width: auto;
+      display: block;
+      flex-shrink: 0;
+    }
+    .header-text {
+      font-size: 18px;
     }
     .header span {
       font-size: 13px;
@@ -157,9 +169,12 @@
 <body>
 
   <div class="header">
-    Cruise Drink Package Calculator
-    <span>See whether a beverage package is likely to pay for itself</span>
-    <a class="back-link" href="/" id="back-link" style="display:none;">&larr; Back to Cruise Planner</a>
+    <img class="header-logo" src="/static/images/peregrine-logo.png" alt="Peregrine">
+    <div class="header-text">
+      Cruise Drink Package Calculator
+      <span>See whether a beverage package is likely to pay for itself</span>
+      <a class="back-link" href="/" id="back-link" style="display:none;">&larr; Back to Cruise Planner</a>
+    </div>
   </div>
 
   <div class="wrap">
