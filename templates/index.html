@@ -864,6 +864,7 @@
       email_summary:      { title: "Send you a summary",             label: "Send my summary",   intent: "email_summary",       opted: false, body: "I'll send your cruise vision and everything we covered to your email — something to keep and refer back to." },
       connect_peregrine:  { title: "Connect with a Peregrine advisor", label: "Connect me",     intent: "connect_peregrine",   opted: true,  body: "Peregrine works with trusted travel advisors who have up-to-the-minute pricing and availability. They'll have your full profile before the first call — no cold intake, no starting over." },
       connect_own_advisor:{ title: advisorName ? "Send to " + advisorName : "Send to your advisor", label: "Send my profile", intent: "connect_own_advisor", opted: true, body: advisorName ? "I'll send your full profile directly to " + advisorName + " before your first call." : "I'll send your full profile directly to your advisor before your first call." },
+      drink_calculator:  { title: "Drink Package Calculator", label: "Open Drink Calculator", intent: "drink_calculator", opted: false, body: "This opens in a new tab. Plug in your cruise line, package, and typical drinking habits to see whether it pays for itself." },
     };
     const cfg = configs[action] || configs.save;
     card.innerHTML =
@@ -878,6 +879,13 @@
     messagesEl.appendChild(card);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     card.querySelector(".hc-confirm").addEventListener("click", async function() {
+      if (cfg.intent === "drink_calculator") {
+        window.open("/drinks?ref=planner", "_blank");
+        this.textContent = "Opened in a new tab";
+        this.disabled = true;
+        card.querySelector(".hc-dismiss").style.display = "none";
+        return;
+      }
       this.textContent = "Working\u2026"; this.disabled = true;
       card.querySelector(".hc-dismiss").style.display = "none";
       try {
