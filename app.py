@@ -1629,10 +1629,8 @@ def video_route():
             fp = v.get("file_path") or v.get("filename") or ""
             if fp.startswith("https://"):
                 url = fp
-            elif fp.startswith("cruise-terminals/"):
-                url = R2_BASE + "/" + fp
             else:
-                url = "/videos/" + fp
+                url = R2_BASE + "/" + fp
             return {
                 "filename": fp,
                 "url":      url,
