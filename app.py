@@ -1243,6 +1243,23 @@ def build_alerts(profile):
             "body": "Daily gratuities run $16–25 per person per day depending on line and cabin. On a 7-night sailing for two: $224–350 not included in most advertised fares. Confirm the guest's budget accounts for this before recommending.",
         })
 
+    # ── Nassau / Bahamas — State Dept jet ski warning (June 15, 2026) ─
+    dest_lower = (profile.get("destination_region") or "").lower()
+    ports = (str(profile.get("ports_of_interest") or "") + " " + dest_lower).lower()
+    if any(w in ports for w in ["nassau", "bahamas", "bahama"]):
+        alerts.append({
+            "type": "critical",
+            "headline": "Nassau — U.S. Embassy jet ski warning (June 15, 2026)",
+            "body": (
+                "The U.S. Embassy in Nassau issued a Security Alert warning Americans to avoid renting jet skis in The Bahamas. "
+                "Since Aug 2024: 6 U.S. citizens hospitalized (3 required medevac), 1 active-duty U.S. service member killed (Sept 2025), "
+                "4 sexual assaults reported (2 in 2025, 2 in 2026) — all involving unlicensed rogue operators on Nassau beaches. "
+                "U.S. government employees are prohibited from jet ski rentals on New Providence and Paradise Islands. "
+                "Advise client to avoid jet ski rentals in Nassau. Source: bs.usembassy.gov, June 15, 2026."
+            ),
+            "advisor_only": True,
+        })
+
     return alerts
 
 
