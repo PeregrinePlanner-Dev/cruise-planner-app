@@ -1240,7 +1240,7 @@ def build_alerts(profile):
         alerts.append({
             "type": "advisory",
             "headline": "Confirm gratuities are in the budget",
-            "body": "Daily gratuities run $16–25 per person per day depending on line and cabin. On a 7-night sailing for two: $224–350 not included in most advertised fares. Confirm the guest's budget accounts for this before recommending.",
+            "body": "Daily gratuities run $16–27 per person per day depending on line and cabin (e.g. Carnival $17, HAL $18–20, NCL $16–20, Princess $18–20, Disney $16 standard/$27.25 concierge, Viking $20). On a 7-night sailing for two: $224–380 not included in most advertised fares. Confirm the guest's budget accounts for this before recommending.",
         })
 
     # ── Nassau / Bahamas — State Dept jet ski warning (June 15, 2026) ─
