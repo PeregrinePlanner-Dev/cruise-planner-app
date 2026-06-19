@@ -384,6 +384,40 @@
       font-style: italic;
     }
 
+    /* ── Expand video button ──────────────────────────────────────────────── */
+    .video-expand-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 5px;
+    }
+
+    #expand-video-btn {
+      background: transparent;
+      border: 1px solid #c7d2fe;
+      border-radius: 5px;
+      color: #4338ca;
+      font-size: 10px;
+      font-family: inherit;
+      font-weight: 600;
+      padding: 3px 9px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      opacity: 0.8;
+      transition: opacity 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    #expand-video-btn:hover {
+      opacity: 1;
+      border-color: #6366f1;
+    }
+
+    #expand-video-btn svg {
+      flex-shrink: 0;
+    }
+
     /* ── Profile summary card ─────────────────────────────────────────── */
     .profile-card {
       background: #f8f9ff;
@@ -730,6 +764,16 @@
     <div class="video-caption">
       <div class="video-caption-title" id="video-caption-title">Port Everglades · Fort Lauderdale</div>
       <div class="video-caption-context" id="video-caption-context">your departure port</div>
+    </div>
+    <div class="video-expand-row">
+      <button id="expand-video-btn" title="Open in larger viewer">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="5,1 1,1 1,15 15,15 15,11"/>
+          <polyline points="9,1 15,1 15,7"/>
+          <line x1="15" y1="1" x2="8" y2="8"/>
+        </svg>
+        Explore Videos
+      </button>
     </div>
     <div id="port-card-container" style="display:none; margin-top:8px;">
       <div class="panel-label" style="color:#1d4ed8; margin-bottom:4px;">⚓ Port Info</div>
@@ -1561,21 +1605,55 @@
         videoEl.play().catch(() => {});
       }
       // Show/hide the video panel based on whether a video is available
-      const panel = document.getElementById("video-panel");
+      const panel   = document.getElementById("video-panel");
       const caption = document.querySelector(".video-caption");
+      const expandRow = document.querySelector(".video-expand-row");
       if (data.video === null) {
-        if (panel)   panel.style.display   = "none";
-        if (caption) caption.style.display = "none";
+        if (panel)     panel.style.display     = "none";
+        if (caption)   caption.style.display   = "none";
+        if (expandRow) expandRow.style.display = "none";
       } else {
-        if (panel)   panel.style.display   = "";
-        if (caption) caption.style.display = "";
+        if (panel)     panel.style.display     = "";
+        if (caption)   caption.style.display   = "";
+        if (expandRow) expandRow.style.display = "";
         if (titleEl) titleEl.textContent = data.video.title   || "";
         if (ctxEl)   ctxEl.textContent   = data.video.context || "";
+        // Broadcast to video viewer window via localStorage
+        try {
+          localStorage.setItem("peregrine_context_video", JSON.stringify({
+            url:      newSrc,
+            title:    data.video.title   || "",
+            context:  data.video.context || "",
+            category: data.video.category || "",
+          }));
+        } catch {}
       }
     } catch {
       // Non-fatal
     }
   }
+
+  // ── Expand video button ────────────────────────────────────────────────────
+  (function() {
+    const btn = document.getElementById("expand-video-btn");
+    if (!btn) return;
+    let viewerWin = null;
+    btn.addEventListener("click", () => {
+      // If already open and alive, just focus it
+      if (viewerWin && !viewerWin.closed) {
+        viewerWin.focus();
+        return;
+      }
+      const w = 1280, h = 760;
+      const left = Math.max(0, Math.round(screen.width  / 2 - w / 2));
+      const top  = Math.max(0, Math.round(screen.height / 2 - h / 2));
+      viewerWin = window.open(
+        "/video-viewer",
+        "peregrine_video_viewer",
+        `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=no`
+      );
+    });
+  })();
 
 </script>
 </body>

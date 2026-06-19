@@ -1496,6 +1496,53 @@ def serve_video(filename):
     return send_from_directory(VIDEOS_DIR, filename)
 
 
+@app.route("/video-viewer")
+def video_viewer_page():
+    """Standalone video explorer (opens in its own window from the planner)."""
+    return render_template("video_viewer.html")
+
+
+@app.route("/api/videos/browse")
+def videos_browse():
+    """Return active videos for the browser panel.
+    Query params: ?q=<search_text>  ?category=<category>
+    """
+    try:
+        q        = (request.args.get("q") or "").strip().lower()
+        cat      = (request.args.get("category") or "").strip().lower()
+
+        params = {"select": "file_path,label,context,category", "active": "eq.true", "order": "label.asc"}
+        if cat and cat != "all":
+            params["category"] = f"eq.{cat}"
+
+        rows = sb_get("videos", params) or []
+
+        if q:
+            rows = [r for r in rows if q in (r.get("label") or "").lower()
+                                      or q in (r.get("context") or "").lower()
+                                      or q in (r.get("category") or "").lower()]
+
+        # Normalise URLs
+        out = []
+        for r in rows:
+            fp = r.get("file_path") or ""
+            url = fp if fp.startswith("https://") else R2_BASE + "/" + fp
+            out.append({
+                "url":      url,
+                "title":    r.get("label") or fp,
+                "context":  r.get("context") or "",
+                "category": r.get("category") or "",
+            })
+
+        # Distinct categories for filter pills
+        all_rows = sb_get("videos", {"select": "category", "active": "eq.true"}) or []
+        categories = sorted({r["category"] for r in all_rows if r.get("category")})
+
+        return jsonify({"videos": out, "categories": categories})
+    except Exception as e:
+        return jsonify({"videos": [], "categories": [], "error": str(e)})
+
+
 @app.route("/drinks")
 def drinks_page():
     """Standalone drink package calculator (opens in its own tab)."""
@@ -3265,6 +3312,8 @@ def chat():
             print(f"Failed to clear drink_calculator handoff_intent: {e}")
 
     return jsonify({"response": bot_reply, "handoff_action": handoff_intent, "advisor_name": advisor_name})
+
+
 
 
 @app.route("/api/chat/reset", methods=["POST"])
