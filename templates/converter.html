@@ -835,6 +835,10 @@
     const data = document.getElementById(id);
     if (!data) return;
     document.getElementById("popup-inner").innerHTML = data.innerHTML;
+    // expand-body is hidden by CSS -- make it visible inside the popup
+    document.querySelectorAll("#popup-inner .expand-body").forEach(el => {
+      el.style.display = "block";
+    });
     document.getElementById("popup-overlay").style.display = "block";
     document.getElementById("popup-box").style.display = "block";
   }
