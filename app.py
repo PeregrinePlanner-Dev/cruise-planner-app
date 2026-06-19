@@ -1543,6 +1543,12 @@ def videos_browse():
         return jsonify({"videos": [], "categories": [], "error": str(e)})
 
 
+@app.route("/converter")
+def converter_page():
+    """Standalone travel converter — currency, weight, temp, distance, volume."""
+    return render_template("converter.html")
+
+
 @app.route("/drinks")
 def drinks_page():
     """Standalone drink package calculator (opens in its own tab)."""

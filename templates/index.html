@@ -384,38 +384,38 @@
       font-style: italic;
     }
 
-    /* ── Expand video button ──────────────────────────────────────────────── */
-    .video-expand-row {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 5px;
-    }
-
+    /* ── Expand video button (corner overlay) ───────────────────────────── */
     #expand-video-btn {
-      background: transparent;
-      border: 1px solid #c7d2fe;
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.25);
       border-radius: 5px;
-      color: #4338ca;
+      color: rgba(255,255,255,0.85);
       font-size: 10px;
       font-family: inherit;
       font-weight: 600;
-      padding: 3px 9px;
+      padding: 4px 8px;
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 4px;
-      opacity: 0.8;
-      transition: opacity 0.15s, border-color 0.15s;
+      opacity: 0;
+      transition: opacity 0.2s, background 0.2s;
       white-space: nowrap;
+      z-index: 10;
+      backdrop-filter: blur(4px);
+    }
+
+    .video-panel:hover #expand-video-btn {
+      opacity: 1;
     }
 
     #expand-video-btn:hover {
-      opacity: 1;
-      border-color: #6366f1;
-    }
-
-    #expand-video-btn svg {
-      flex-shrink: 0;
+      background: rgba(0,0,0,0.80);
+      border-color: rgba(255,255,255,0.5);
+      color: white;
     }
 
     /* ── Profile summary card ─────────────────────────────────────────── */
@@ -760,20 +760,18 @@
       <video id="destination-video" muted playsinline controls>
         <source src="https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev/cruise-terminals/port-everglades-terminal-3.mp4" type="video/mp4">
       </video>
-    </div>
-    <div class="video-caption">
-      <div class="video-caption-title" id="video-caption-title">Port Everglades · Fort Lauderdale</div>
-      <div class="video-caption-context" id="video-caption-context">your departure port</div>
-    </div>
-    <div class="video-expand-row">
-      <button id="expand-video-btn" title="Open in larger viewer">
-        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button id="expand-video-btn" title="Open video explorer">
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="5,1 1,1 1,15 15,15 15,11"/>
           <polyline points="9,1 15,1 15,7"/>
           <line x1="15" y1="1" x2="8" y2="8"/>
         </svg>
-        Explore Videos
+        Explore
       </button>
+    </div>
+    <div class="video-caption">
+      <div class="video-caption-title" id="video-caption-title">Port Everglades · Fort Lauderdale</div>
+      <div class="video-caption-context" id="video-caption-context">your departure port</div>
     </div>
     <div id="port-card-container" style="display:none; margin-top:8px;">
       <div class="panel-label" style="color:#1d4ed8; margin-bottom:4px;">⚓ Port Info</div>
@@ -781,7 +779,10 @@
     </div>
     <div class="panel-label intel-label" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between;">
       <span>✦ Insider Intel</span>
-      <a href="/drinks?ref=planner" target="_blank" rel="noopener" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px;">🍹 Drink Calculator</a>
+      <div style="display:flex; gap:5px;">
+        <a href="/drinks?ref=planner" target="_blank" rel="noopener" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px;">🍹 Drinks</a>
+        <a href="/converter?ref=planner" target="_blank" rel="noopener" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px;">💱 Converter</a>
+      </div>
     </div>
     <div class="intel-panel" id="intel-panel">
       <div class="intel-placeholder">Tips and insights will appear here as your plans take shape.</div>
@@ -1607,15 +1608,12 @@
       // Show/hide the video panel based on whether a video is available
       const panel   = document.getElementById("video-panel");
       const caption = document.querySelector(".video-caption");
-      const expandRow = document.querySelector(".video-expand-row");
       if (data.video === null) {
-        if (panel)     panel.style.display     = "none";
-        if (caption)   caption.style.display   = "none";
-        if (expandRow) expandRow.style.display = "none";
+        if (panel)   panel.style.display   = "none";
+        if (caption) caption.style.display = "none";
       } else {
-        if (panel)     panel.style.display     = "";
-        if (caption)   caption.style.display   = "";
-        if (expandRow) expandRow.style.display = "";
+        if (panel)   panel.style.display   = "";
+        if (caption) caption.style.display = "";
         if (titleEl) titleEl.textContent = data.video.title   || "";
         if (ctxEl)   ctxEl.textContent   = data.video.context || "";
         // Broadcast to video viewer window via localStorage
