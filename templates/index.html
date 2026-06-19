@@ -780,8 +780,8 @@
     <div class="panel-label intel-label" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between;">
       <span>✦ Insider Intel</span>
       <div style="display:flex; gap:5px;">
-        <button onclick="openPanel('/drinks','peregrine_drinks',820,640)" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; cursor:pointer; font-family:inherit;">🍹 Drinks</button>
-        <button onclick="openPanel('/converter','peregrine_converter',980,920)" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; cursor:pointer; font-family:inherit;">💱 Converter</button>
+        <button onclick="openPanel('/drinks','peregrine_drinks',820,880)" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; cursor:pointer; font-family:inherit;">🍹 Drinks</button>
+        <button onclick="openPanel('/converter','peregrine_converter',980,940)" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; cursor:pointer; font-family:inherit;">💱 Converter</button>
       </div>
     </div>
     <div class="intel-panel" id="intel-panel">
@@ -925,7 +925,7 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
     card.querySelector(".hc-confirm").addEventListener("click", async function() {
       if (cfg.intent === "drink_calculator") {
-        openPanel("/drinks", "peregrine_drinks", 820, 640);
+        openPanel("/drinks", "peregrine_drinks", 820, 880);
         this.textContent = "Drink Calculator opened";
         card.querySelector(".hc-dismiss").style.display = "none";
         return;

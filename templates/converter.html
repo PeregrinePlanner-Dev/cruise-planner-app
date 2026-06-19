@@ -9,12 +9,21 @@
 
     html, body {
       height: 100%;
+      overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #f0f2f5;
       color: #1e293b;
     }
 
-    /* ── Header ── */
+    body { display: flex; flex-direction: column; }
+
+    .tab-content {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    /* -- Header -- */
     .app-header {
       background: #1a3d6e;
       color: white;
@@ -438,6 +447,38 @@
       margin-top: 10px;
       line-height: 1.45;
     }
+
+    /* -- Popup overlay -- */
+    .popup-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 900;
+    }
+    .popup-box {
+      display: none; position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      background: #fff; border-radius: 12px;
+      padding: 24px 28px 20px; max-width: 700px; width: 92%;
+      max-height: 82vh; overflow-y: auto;
+      z-index: 901; box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    }
+    .popup-title {
+      font-size: 13px; font-weight: 700; color: #1a3d6e;
+      margin-bottom: 14px; padding-right: 24px;
+    }
+    .popup-close {
+      position: absolute; top: 14px; right: 16px;
+      background: none; border: none; font-size: 17px;
+      cursor: pointer; color: #64748b; padding: 2px 6px; line-height:1;
+    }
+    .popup-close:hover { color: #1e293b; }
+    .ref-popup-btn {
+      margin-top: 10px;
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-radius: 6px; padding: 5px 12px;
+      font-size: 11px; font-weight: 600; color: #1d4ed8;
+      cursor: pointer; font-family: inherit;
+    }
+    .ref-popup-btn:hover { background: #dbeafe; }
   </style>
 </head>
 <body>
@@ -458,6 +499,7 @@
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
 <!--  CURRENCY TAB                                                            -->
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="tab-content">
 <div id="tab-currency" class="tab-panel active">
 
   <div class="currency-card">
@@ -606,12 +648,9 @@
       </div>
       <div class="cruise-tip">Economy checked bags are typically <strong>50 lbs / 23 kg</strong> on major carriers. Business class is usually <strong>70 lbs / 32 kg</strong>. Budget carriers vary widely — always check before you pack.</div>
 
-      <div class="expand-panel">
-        <button class="expand-toggle" onclick="togglePanel(this)">
-          ▸ Airline Baggage Weight Reference
-          <span class="expand-arrow">▾</span>
-        </button>
-        <div class="expand-body">
+      <button class="ref-popup-btn" onclick="openPopup('baggage-ref')">📋 Airline Baggage Reference</button>
+      <div id="baggage-ref" style="display:none">
+        <div class="popup-title">Airline Baggage Weight Reference</div>
           <table class="ref-table">
             <thead>
               <tr>
@@ -658,9 +697,8 @@
               </tr>
             </tbody>
           </table>
-          <p class="ref-warn">⚠ Overweight bag fees typically start at $100–$200 per bag for bags over 50 lbs. Bags over 70 lbs (32 kg) are often refused entirely — you'll need to repack at the counter.</p>
+          <p class="ref-warn" style="margin-top:10px">⚠ Overweight bag fees typically start at $100–$200 per bag for bags over 50 lbs. Bags over 70 lbs (32 kg) are often refused entirely — you'll need to repack at the counter.</p>
           <p class="ref-note">Limits shown are per bag. Most airlines allow 1–2 checked bags in economy with fees from $35–$75 each for the first bag. Always verify directly with your airline before travel — policies change.</p>
-        </div>
       </div>
     </div>
 
@@ -714,11 +752,9 @@
       </div>
       <div class="cruise-tip">The TSA 3-1-1 limit is <strong>3.4 fl oz (100 ml)</strong> per container in carry-on. A standard duty-free bottle is <strong>750 ml (25.4 oz)</strong> — always check in or use sealed duty-free bags.</div>
 
-      <div class="expand-panel">
-        <button class="expand-toggle" onclick="togglePanel(this)">
-          ▸ TSA Liquids Rules &amp; Carry-On Size
-          <span class="expand-arrow">▾</span>
-        </button>
+      <button class="ref-popup-btn" onclick="openPopup('tsa-ref')">📋 TSA Liquids &amp; Carry-On Reference</button>
+      <div id="tsa-ref" style="display:none">
+        <div class="popup-title">TSA Liquids Rules &amp; Carry-On Size</div>
         <div class="expand-body">
           <p style="font-size:11px; font-weight:700; color:#1a3d6e; margin-bottom:8px;">✈ The 3-1-1 Rule (Carry-On Liquids)</p>
           <table class="ref-table">
@@ -786,22 +822,25 @@
           </table>
           <div class="ref-warn">⚠ <strong>Enforcement reality:</strong> Carry-on rules are unevenly enforced at the gate. However, gate/jetway checking has become increasingly common on full flights — your bag may be tagged and checked at the jetway at no charge, or you may be asked to check it for a fee. Don't count on getting through unchecked. Budget carrier flights are enforced more aggressively than legacy carrier flights.</div>
           <p class="ref-note">Sizes shown include wheels and handles. Airlines have been gradually tightening stated limits — always verify on your airline's website before your trip.</p>
-        </div>
       </div>
     </div>
 
   </div>
 </div>
+</div><!-- /.tab-content -->
 
 <script>
-  // ── Expandable panels ─────────────────────────────────────────────────────
-  function togglePanel(btn) {
-    const body  = btn.nextElementSibling;
-    const arrow = btn.querySelector(".expand-arrow");
-    const open  = body.classList.toggle("open");
-    arrow.style.transform = open ? "rotate(180deg)" : "";
-    btn.querySelector("span:first-child").textContent =
-      (open ? "▾ " : "▸ ") + btn.querySelector("span:first-child").textContent.slice(2);
+  // -- Popup reference panels --
+  function openPopup(id) {
+    const data = document.getElementById(id);
+    if (!data) return;
+    document.getElementById("popup-inner").innerHTML = data.innerHTML;
+    document.getElementById("popup-overlay").style.display = "block";
+    document.getElementById("popup-box").style.display = "block";
+  }
+  function closePopup() {
+    document.getElementById("popup-overlay").style.display = "none";
+    document.getElementById("popup-box").style.display = "none";
   }
 
   // ── Tab switching ──────────────────────────────────────────────────────────
@@ -948,5 +987,11 @@
 
   loadRates();
 </script>
+
+<div class="popup-overlay" id="popup-overlay" onclick="closePopup()"></div>
+<div class="popup-box" id="popup-box">
+  <button class="popup-close" onclick="closePopup()">✕</button>
+  <div id="popup-inner"></div>
+</div>
 </body>
 </html>
