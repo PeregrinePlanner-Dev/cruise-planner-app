@@ -1545,8 +1545,22 @@ def videos_browse():
 
 @app.route("/converter")
 def converter_page():
-    """Standalone travel converter — currency, weight, temp, distance, volume."""
+    """Standalone travel converter -- currency, weight, temp, distance, volume."""
     return render_template("converter.html")
+
+
+@app.route("/api/exchange-rates")
+def exchange_rates():
+    """Proxy frankfurter.app so the browser never hits an external domain."""
+    try:
+        resp = requests.get(
+            "https://api.frankfurter.app/latest?from=USD",
+            timeout=6,
+        )
+        data = resp.json()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
 
 
 @app.route("/drinks")
@@ -3357,6 +3371,7 @@ def dev_flush_sessions():
             timeout=10,
         )
         if resp.ok:
+
             return jsonify({"deleted": True, "status": resp.status_code})
         return jsonify({"error": resp.text}), 500
     except Exception as e:

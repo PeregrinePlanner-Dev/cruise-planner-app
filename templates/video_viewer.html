@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Video Explorer · Cruise Planner</title>
+  <title>Video Viewer · Cruise Planner</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -13,9 +13,11 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #0b0d12;
       color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* ── Header ── */
+    /* -- Header -- */
     .viewer-header {
       background: #1a3d6e;
       color: white;
@@ -25,6 +27,18 @@
       justify-content: space-between;
       flex-shrink: 0;
       height: 44px;
+    }
+
+    .viewer-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-logo {
+      height: 28px;
+      width: auto;
+      display: block;
     }
 
     .viewer-header-title {
@@ -53,21 +67,7 @@
       50% { opacity: 0.7; }
     }
 
-    /* ── Two-panel layout ── */
-    .viewer-body {
-      display: flex;
-      height: calc(100vh - 44px);
-    }
-
-    /* ── Left — video player ── */
-    .panel-video {
-      flex: 0 0 65%;
-      display: flex;
-      flex-direction: column;
-      background: #0b0d12;
-      border-right: 1px solid #1e2535;
-    }
-
+    /* -- Video area -- */
     .video-wrap {
       flex: 1;
       min-height: 0;
@@ -84,30 +84,31 @@
       display: block;
     }
 
+    /* -- Info bar below video -- */
     .video-info {
       flex-shrink: 0;
-      padding: 10px 16px 12px;
+      padding: 12px 20px 14px;
       background: #111827;
       border-top: 1px solid #1e2535;
     }
 
     .video-info-title {
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
       color: #f1f5f9;
       line-height: 1.3;
     }
 
     .video-info-context {
-      font-size: 11px;
+      font-size: 12px;
       color: #64748b;
       font-style: italic;
-      margin-top: 2px;
+      margin-top: 3px;
     }
 
     .video-info-category {
       display: inline-block;
-      margin-top: 6px;
+      margin-top: 7px;
       font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
@@ -117,287 +118,62 @@
       border-radius: 4px;
       padding: 2px 7px;
     }
-
-    /* ── Right — browse panel ── */
-    .panel-browse {
-      flex: 0 0 35%;
-      display: flex;
-      flex-direction: column;
-      background: #111827;
-      min-height: 0;
-    }
-
-    .browse-top {
-      flex-shrink: 0;
-      padding: 12px 14px 8px;
-      border-bottom: 1px solid #1e2535;
-    }
-
-    .search-row {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .search-input {
-      flex: 1;
-      background: #1e2535;
-      border: 1px solid #2d3748;
-      border-radius: 7px;
-      padding: 7px 10px;
-      font-size: 12px;
-      color: #e2e8f0;
-      outline: none;
-      font-family: inherit;
-      transition: border-color 0.15s;
-    }
-
-    .search-input::placeholder { color: #4b5563; }
-    .search-input:focus { border-color: #3b82f6; }
-
-    .search-clear {
-      background: none;
-      border: none;
-      color: #4b5563;
-      font-size: 16px;
-      cursor: pointer;
-      padding: 4px 6px;
-      border-radius: 4px;
-      line-height: 1;
-      display: none;
-    }
-    .search-clear.visible { display: block; }
-    .search-clear:hover { color: #e2e8f0; background: #1e2535; }
-
-    /* Category pills */
-    .cat-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      margin-top: 9px;
-    }
-
-    .cat-pill {
-      background: #1e2535;
-      border: 1px solid #2d3748;
-      border-radius: 20px;
-      padding: 3px 10px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: #94a3b8;
-      cursor: pointer;
-      transition: all 0.12s;
-      white-space: nowrap;
-    }
-
-    .cat-pill:hover { border-color: #3b82f6; color: #93c5fd; }
-
-    .cat-pill.active {
-      background: #1e3a5f;
-      border-color: #3b82f6;
-      color: #93c5fd;
-    }
-
-    /* Result count */
-    .result-count {
-      font-size: 10px;
-      color: #4b5563;
-      padding: 6px 14px 4px;
-      flex-shrink: 0;
-    }
-
-    /* Video list */
-    .video-list {
-      flex: 1;
-      overflow-y: auto;
-      min-height: 0;
-    }
-
-    .video-list::-webkit-scrollbar { width: 5px; }
-    .video-list::-webkit-scrollbar-track { background: transparent; }
-    .video-list::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 3px; }
-
-    .video-item {
-      display: flex;
-      flex-direction: column;
-      padding: 10px 14px;
-      cursor: pointer;
-      border-bottom: 1px solid #1a2030;
-      transition: background 0.1s;
-    }
-
-    .video-item:hover { background: #1a2535; }
-    .video-item.playing { background: #1e3a5f; border-left: 3px solid #3b82f6; }
-
-    .video-item-title {
-      font-size: 12px;
-      font-weight: 500;
-      color: #e2e8f0;
-      line-height: 1.35;
-    }
-
-    .video-item.playing .video-item-title { color: #93c5fd; }
-
-    .video-item-meta {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 3px;
-    }
-
-    .video-item-cat {
-      font-size: 9px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #4b5563;
-    }
-
-    .video-item.playing .video-item-cat { color: #60a5fa; }
-
-    .now-playing-dot {
-      display: none;
-      width: 6px;
-      height: 6px;
-      background: #3b82f6;
-      border-radius: 50%;
-      animation: blink 1.5s ease-in-out infinite;
-    }
-
-    .video-item.playing .now-playing-dot { display: inline-block; }
-
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    .empty-state {
-      padding: 32px 20px;
-      text-align: center;
-      color: #4b5563;
-      font-size: 12px;
-    }
-
-    /* Loading spinner */
-    .loading-state {
-      padding: 32px 20px;
-      text-align: center;
-      color: #4b5563;
-      font-size: 12px;
-    }
   </style>
 </head>
 <body>
 
 <div class="viewer-header">
-  <span class="viewer-header-title">✦ Video Explorer</span>
+  <div class="viewer-header-left">
+    <img class="header-logo" src="/static/images/peregrine-logo.png" alt="Peregrine">
+    <span class="viewer-header-title">Video Viewer</span>
+  </div>
   <span class="sync-chip" id="sync-chip" title="The planner updated the context video — click to switch">
     ✦ Trip video updated — <u>switch</u>
   </span>
 </div>
 
-<div class="viewer-body">
+<div class="video-wrap">
+  <video id="main-video" muted playsinline controls autoplay></video>
+</div>
 
-  <!-- Left: video player -->
-  <div class="panel-video">
-    <div class="video-wrap">
-      <video id="main-video" muted playsinline controls autoplay></video>
-    </div>
-    <div class="video-info">
-      <div class="video-info-title" id="info-title">Loading…</div>
-      <div class="video-info-context" id="info-context"></div>
-      <span class="video-info-category" id="info-category"></span>
-    </div>
-  </div>
-
-  <!-- Right: browse panel -->
-  <div class="panel-browse">
-    <div class="browse-top">
-      <div class="search-row">
-        <input type="text" class="search-input" id="search-input" placeholder="Search destinations, ports, attractions…">
-        <button class="search-clear" id="search-clear" title="Clear">✕</button>
-      </div>
-      <div class="cat-pills" id="cat-pills">
-        <!-- populated by JS -->
-      </div>
-    </div>
-
-    <div class="result-count" id="result-count"></div>
-
-    <div class="video-list" id="video-list">
-      <div class="loading-state">Loading videos…</div>
-    </div>
-  </div>
-
+<div class="video-info">
+  <div class="video-info-title" id="info-title">Loading…</div>
+  <div class="video-info-context" id="info-context"></div>
+  <span class="video-info-category" id="info-category"></span>
 </div>
 
 <script>
-  // ── State ──────────────────────────────────────────────────────────────────
-  const videoEl      = document.getElementById("main-video");
-  const infoTitle    = document.getElementById("info-title");
-  const infoContext  = document.getElementById("info-context");
-  const infoCat      = document.getElementById("info-category");
-  const searchInput  = document.getElementById("search-input");
-  const searchClear  = document.getElementById("search-clear");
-  const catPillsCont = document.getElementById("cat-pills");
-  const videoList    = document.getElementById("video-list");
-  const resultCount  = document.getElementById("result-count");
-  const syncChip     = document.getElementById("sync-chip");
+  const videoEl     = document.getElementById("main-video");
+  const infoTitle   = document.getElementById("info-title");
+  const infoContext = document.getElementById("info-context");
+  const infoCat     = document.getElementById("info-category");
+  const syncChip    = document.getElementById("sync-chip");
 
-  let allVideos      = [];
-  let allCategories  = [];
-  let activeCategory = "all";
   let currentUrl     = "";
-  let isOnContextVid = true;   // true = viewer is showing the planner's context video
-
-  // pending context update from the planner (shown via sync chip)
+  let isOnContextVid = true;
   let pendingContext = null;
 
-  // ── CATEGORY DISPLAY NAMES ─────────────────────────────────────────────────
   const CAT_LABELS = {
-    airport:          "Airports",
-    cruise_terminal:  "Terminals",
-    destination:      "Destinations",
-    attraction:       "Attractions",
-    castle:           "Castles",
-    cathedral:        "Cathedrals",
-    monument:         "Monuments",
-    museum:           "Museums",
-    nature:           "Nature",
+    airport:            "Airports",
+    cruise_terminal:    "Terminals",
+    destination:        "Destinations",
+    attraction:         "Attractions",
+    castle:             "Castles",
+    cathedral:          "Cathedrals",
+    monument:           "Monuments",
+    museum:             "Museums",
+    nature:             "Nature",
     "pre-cruise-hotel": "Hotels",
-    resort:           "Resorts",
-    "river-port":     "River Ports",
-    "theme-park":     "Theme Parks",
-    zoo:              "Zoos",
+    resort:             "Resorts",
+    "river-port":       "River Ports",
+    "theme-park":       "Theme Parks",
+    zoo:                "Zoos",
   };
 
   function catLabel(c) {
-    return CAT_LABELS[c] || c.replace(/-|_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    return CAT_LABELS[c] || (c || "").replace(/-|_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
   }
 
-  // ── Load initial video from localStorage (set by planner) ─────────────────
-  function loadInitialVideo() {
-    try {
-      const stored = localStorage.getItem("peregrine_context_video");
-      if (stored) {
-        const v = JSON.parse(stored);
-        playVideo(v.url, v.title, v.context, v.category || "", false);
-        return;
-      }
-    } catch {}
-    // Fallback: default Port Everglades
-    playVideo(
-      "https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev/cruise-terminals/port-everglades-terminal-3.mp4",
-      "Port Everglades · Fort Lauderdale",
-      "your departure port",
-      "cruise_terminal",
-      false
-    );
-  }
-
-  // ── Play a video ──────────────────────────────────────────────────────────
   function playVideo(url, title, context, category, userInitiated) {
     if (userInitiated) isOnContextVid = false;
 
@@ -408,122 +184,41 @@
 
     infoTitle.textContent   = title || "";
     infoContext.textContent = context || "";
-    infoCat.textContent     = catLabel(category) || "";
-    infoCat.style.display   = category ? "" : "none";
 
-    // Update active item in list
-    document.querySelectorAll(".video-item").forEach(el => {
-      el.classList.toggle("playing", el.dataset.url === url);
-    });
-
-    // Pre-select the right category pill if no filter active
-    if (!userInitiated && category && activeCategory === "all") {
-      // silently set the category filter to match the context video
-      setCategory(category);
-    }
+    const label = catLabel(category);
+    infoCat.textContent  = label;
+    infoCat.style.display = category ? "" : "none";
   }
 
-  // ── Fetch and render video list ───────────────────────────────────────────
-  async function fetchVideos(q, category) {
-    const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    if (category && category !== "all") params.set("category", category);
-
-    const res  = await fetch("/api/videos/browse?" + params.toString());
-    const data = await res.json();
-
-    if (data.categories && data.categories.length > 0 && allCategories.length === 0) {
-      allCategories = data.categories;
-      renderCategoryPills();
-    }
-
-    return data.videos || [];
+  function loadInitialVideo() {
+    try {
+      const stored = localStorage.getItem("peregrine_context_video");
+      if (stored) {
+        const v = JSON.parse(stored);
+        playVideo(v.url, v.title, v.context, v.category || "", false);
+        return;
+      }
+    } catch {}
+    playVideo(
+      "https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev/cruise-terminals/port-everglades-terminal-3.mp4",
+      "Port Everglades · Fort Lauderdale",
+      "your departure port",
+      "cruise_terminal",
+      false
+    );
   }
 
-  function renderCategoryPills() {
-    catPillsCont.innerHTML = "";
-
-    const allPill = document.createElement("div");
-    allPill.className = "cat-pill" + (activeCategory === "all" ? " active" : "");
-    allPill.textContent = "All";
-    allPill.addEventListener("click", () => setCategory("all"));
-    catPillsCont.appendChild(allPill);
-
-    allCategories.forEach(cat => {
-      const pill = document.createElement("div");
-      pill.className = "cat-pill" + (activeCategory === cat ? " active" : "");
-      pill.textContent = catLabel(cat);
-      pill.dataset.cat = cat;
-      pill.addEventListener("click", () => setCategory(cat));
-      catPillsCont.appendChild(pill);
-    });
-  }
-
-  function setCategory(cat) {
-    activeCategory = cat;
-    document.querySelectorAll(".cat-pill").forEach(p => {
-      p.classList.toggle("active",
-        cat === "all" ? p.textContent === "All" : p.dataset && p.dataset.cat === cat);
-    });
-    renderVideoList();
-  }
-
-  async function renderVideoList() {
-    videoList.innerHTML = '<div class="loading-state">Loading…</div>';
-    const q = searchInput.value.trim();
-    const videos = await fetchVideos(q, activeCategory);
-    allVideos = videos;
-
-    resultCount.textContent = videos.length
-      ? `${videos.length} video${videos.length !== 1 ? "s" : ""}`
-      : "";
-
-    if (!videos.length) {
-      videoList.innerHTML = '<div class="empty-state">No videos found.<br>Try a different search or category.</div>';
-      return;
-    }
-
-    videoList.innerHTML = "";
-    videos.forEach(v => {
-      const item = document.createElement("div");
-      item.className = "video-item" + (v.url === currentUrl ? " playing" : "");
-      item.dataset.url = v.url;
-      item.innerHTML = `
-        <div class="video-item-title">${escHtml(v.title)}</div>
-        <div class="video-item-meta">
-          <span class="now-playing-dot"></span>
-          <span class="video-item-cat">${escHtml(catLabel(v.category))}</span>
-        </div>`;
-      item.addEventListener("click", () => {
-        playVideo(v.url, v.title, v.context, v.category, true);
-        // Update active class
-        document.querySelectorAll(".video-item").forEach(el =>
-          el.classList.toggle("playing", el.dataset.url === v.url));
-        // Hide sync chip when user explicitly picks a video (already browsing)
-        syncChip.classList.remove("visible");
-        pendingContext = null;
-      });
-      videoList.appendChild(item);
-    });
-  }
-
-  function escHtml(s) {
-    return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  }
-
-  // ── Sync chip — listen for context updates from the planner ──────────────
+  // Listen for context updates from the planner (localStorage storage event)
   window.addEventListener("storage", (e) => {
     if (e.key !== "peregrine_context_video") return;
     try {
       const v = JSON.parse(e.newValue);
-      if (!v || v.url === currentUrl) return;  // no change
+      if (!v || v.url === currentUrl) return;
 
       if (isOnContextVid) {
-        // Still on the planner's video — auto-update silently
         playVideo(v.url, v.title, v.context, v.category || "", false);
-        isOnContextVid = true;  // keep flag true
+        isOnContextVid = true;
       } else {
-        // User is browsing — show chip
         pendingContext = v;
         syncChip.classList.add("visible");
       }
@@ -538,23 +233,7 @@
     pendingContext = null;
   });
 
-  // ── Search ────────────────────────────────────────────────────────────────
-  let searchTimer = null;
-  searchInput.addEventListener("input", () => {
-    searchClear.classList.toggle("visible", searchInput.value.length > 0);
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(renderVideoList, 280);
-  });
-
-  searchClear.addEventListener("click", () => {
-    searchInput.value = "";
-    searchClear.classList.remove("visible");
-    renderVideoList();
-  });
-
-  // ── Init ──────────────────────────────────────────────────────────────────
   loadInitialVideo();
-  renderVideoList();
 </script>
 </body>
 </html>

@@ -401,7 +401,7 @@
       display: flex;
       align-items: center;
       gap: 4px;
-      opacity: 0;
+      opacity: 0.72;
       transition: opacity 0.2s, background 0.2s;
       white-space: nowrap;
       z-index: 10;
@@ -925,8 +925,8 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
     card.querySelector(".hc-confirm").addEventListener("click", async function() {
       if (cfg.intent === "drink_calculator") {
-        window.open("/drinks?ref=planner", "_blank");
-        this.textContent = "Open Drink Calculator (opens new tab)";
+        openPanel("/drinks", "peregrine_drinks", 820, 640);
+        this.textContent = "Drink Calculator opened";
         card.querySelector(".hc-dismiss").style.display = "none";
         return;
       }
@@ -1648,3 +1648,4 @@
 </script>
 </body>
 </html>
+        

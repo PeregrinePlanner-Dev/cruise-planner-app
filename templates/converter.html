@@ -443,7 +443,8 @@
 <body>
 
 <div class="app-header">
-  <div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <img src="/static/images/peregrine-logo.png" alt="Peregrine" style="height:32px;width:auto;display:block;">
     <div class="app-header-title">✦ Travel Tools</div>
   </div>
   <div class="app-header-sub">Currency · Conversions</div>
@@ -694,7 +695,7 @@
         <input class="conv-input" id="d-km" type="number" placeholder="0" oninput="fromKm()" step="any">
         <span class="conv-unit">km</span>
       </div>
-      <div class="cruise-tip">Shore excursion distances are usually listed in km outside the US. A <strong>10 km</strong> walking tour is about <strong>6.2 miles</strong>.</div>
+      <div class="cruise-tip">Shore excursion distances are usually listed in km outside the US. A <strong>10 km</strong> walking tour is about <strong>6.2 miles</strong>. Airline frequent flyer miles are statute miles — the same miles shown here.</div>
     </div>
 
     <!-- Volume -->
@@ -825,7 +826,7 @@
   async function loadRates() {
     const statusEl = document.getElementById("rate-status");
     try {
-      const res  = await fetch("https://api.frankfurter.app/latest?from=USD");
+      const res  = await fetch("/api/exchange-rates");
       const data = await res.json();
       rates = { USD: 1, ...data.rates };
       ratesLoaded = true;
@@ -922,7 +923,7 @@
 
   function loadRates() {
     const statusEl = document.getElementById("rate-status");
-    fetch("https://api.frankfurter.app/latest?from=USD")
+    fetch("/api/exchange-rates")
       .then(r => r.json())
       .then(data => {
         rates = { USD: 1, ...data.rates };
