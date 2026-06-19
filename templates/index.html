@@ -780,8 +780,8 @@
     <div class="panel-label intel-label" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between;">
       <span>✦ Insider Intel</span>
       <div style="display:flex; gap:5px;">
-        <a href="/drinks?ref=planner" target="_blank" rel="noopener" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px;">🍹 Drinks</a>
-        <a href="/converter?ref=planner" target="_blank" rel="noopener" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px;">💱 Converter</a>
+        <button onclick="openPanel('/drinks','peregrine_drinks',820,640)" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; cursor:pointer; font-family:inherit;">🍹 Drinks</button>
+        <button onclick="openPanel('/converter','peregrine_converter',900,700)" style="font-size:11px; font-weight:600; color:#1d4ed8; text-decoration:none; text-transform:none; letter-spacing:normal; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; cursor:pointer; font-family:inherit;">💱 Converter</button>
       </div>
     </div>
     <div class="intel-panel" id="intel-panel">
@@ -1605,7 +1605,6 @@
         videoEl.load();
         videoEl.play().catch(() => {});
       }
-      // Show/hide the video panel based on whether a video is available
       const panel   = document.getElementById("video-panel");
       const caption = document.querySelector(".video-caption");
       if (data.video === null) {
@@ -1616,7 +1615,6 @@
         if (caption) caption.style.display = "";
         if (titleEl) titleEl.textContent = data.video.title   || "";
         if (ctxEl)   ctxEl.textContent   = data.video.context || "";
-        // Broadcast to video viewer window via localStorage
         try {
           localStorage.setItem("peregrine_context_video", JSON.stringify({
             url:      newSrc,
@@ -1631,27 +1629,21 @@
     }
   }
 
-  // ── Expand video button ────────────────────────────────────────────────────
-  (function() {
-    const btn = document.getElementById("expand-video-btn");
-    if (!btn) return;
-    let viewerWin = null;
-    btn.addEventListener("click", () => {
-      // If already open and alive, just focus it
-      if (viewerWin && !viewerWin.closed) {
-        viewerWin.focus();
-        return;
-      }
-      const w = 1280, h = 760;
-      const left = Math.max(0, Math.round(screen.width  / 2 - w / 2));
-      const top  = Math.max(0, Math.round(screen.height / 2 - h / 2));
-      viewerWin = window.open(
-        "/video-viewer",
-        "peregrine_video_viewer",
-        `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=no`
-      );
-    });
-  })();
+  // Panel window helper (drinks, converter, video viewer)
+  const _panelWins = {};
+  function openPanel(url, name, w, h) {
+    if (_panelWins[name] && !_panelWins[name].closed) {
+      _panelWins[name].focus();
+      return;
+    }
+    const left = Math.max(0, Math.round(screen.width  / 2 - w / 2));
+    const top  = Math.max(0, Math.round(screen.height / 2 - h / 2));
+    _panelWins[name] = window.open(url, name,
+      `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+  }
+
+  document.getElementById("expand-video-btn")
+    ?.addEventListener("click", () => openPanel("/video-viewer","peregrine_video_viewer",1280,760));
 
 </script>
 </body>

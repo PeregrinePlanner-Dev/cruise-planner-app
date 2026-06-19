@@ -344,6 +344,100 @@
       margin-top: 12px;
       line-height: 1.45;
     }
+
+    /* ── Expandable reference panels ── */
+    .expand-panel {
+      margin-top: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .expand-toggle {
+      width: 100%;
+      background: #f8fafc;
+      border: none;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+      color: #1a3d6e;
+      cursor: pointer;
+      font-family: inherit;
+      text-align: left;
+      letter-spacing: 0.04em;
+    }
+
+    .expand-toggle:hover { background: #eff6ff; }
+
+    .expand-arrow {
+      font-size: 10px;
+      transition: transform 0.2s;
+      color: #64748b;
+    }
+
+    .expand-body {
+      display: none;
+      padding: 12px 14px;
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .expand-body.open { display: block; }
+
+    /* Reference table */
+    .ref-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .ref-table th {
+      text-align: left;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #64748b;
+      padding: 4px 8px 6px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .ref-table td {
+      padding: 5px 8px 5px 0;
+      color: #334155;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+      line-height: 1.35;
+    }
+
+    .ref-table tr:last-child td { border-bottom: none; }
+
+    .ref-note {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 8px;
+      line-height: 1.45;
+      font-style: italic;
+    }
+
+    .ref-highlight {
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .ref-warn {
+      font-size: 11px;
+      color: #92400e;
+      background: #fffbeb;
+      border-left: 3px solid #fcd34d;
+      padding: 7px 10px;
+      border-radius: 0 5px 5px 0;
+      margin-top: 10px;
+      line-height: 1.45;
+    }
   </style>
 </head>
 <body>
@@ -449,7 +543,7 @@
 
     <div class="info-tip">
       <span class="info-tip-icon">✅</span>
-      <span><strong>Notify your bank and credit cards before you go.</strong> Card companies often flag foreign charges as fraud and will decline your card mid-trip. Call or log in to set a travel notice for every card you plan to use — including the one you keep as a backup.</span>
+      <span><strong>Call your credit card companies before you go — each one, directly.</strong> Credit card companies routinely flag foreign charges as potential fraud and will decline your card without warning, often at the worst possible moment. Knowing you plan to travel is not enough — you need to set a formal travel notice with each credit card company you're bringing. Log in to your account or call the number on the back of the card and set the exact travel dates and destinations. Do this for every card, including your backup. Your bank's debit card needs the same call.</span>
     </div>
 
     <div class="info-tip">
@@ -509,7 +603,64 @@
         <input class="conv-input" id="w-kg" type="number" placeholder="0" oninput="fromKg()" step="any">
         <span class="conv-unit">kg</span>
       </div>
-      <div class="cruise-tip">Most international airlines allow <strong>23 kg (50 lbs)</strong> per checked bag in economy. Business class often allows 32 kg (70 lbs).</div>
+      <div class="cruise-tip">Economy checked bags are typically <strong>50 lbs / 23 kg</strong> on major carriers. Business class is usually <strong>70 lbs / 32 kg</strong>. Budget carriers vary widely — always check before you pack.</div>
+
+      <div class="expand-panel">
+        <button class="expand-toggle" onclick="togglePanel(this)">
+          ▸ Airline Baggage Weight Reference
+          <span class="expand-arrow">▾</span>
+        </button>
+        <div class="expand-body">
+          <table class="ref-table">
+            <thead>
+              <tr>
+                <th>Airline / Type</th>
+                <th>Economy Checked</th>
+                <th>Business / First</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ref-highlight">Delta, United, American</td>
+                <td>50 lbs (23 kg)</td>
+                <td>70 lbs (32 kg)</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Southwest</td>
+                <td>50 lbs (23 kg) · 2 bags free</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">British Airways, Lufthansa, Air France</td>
+                <td>50 lbs (23 kg)</td>
+                <td>70 lbs (32 kg)</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Emirates, Qatar, Singapore</td>
+                <td>50 lbs (23 kg)</td>
+                <td>88–143 lbs (40–65 kg)</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Frontier, Allegiant</td>
+                <td>40 lbs (18 kg) — check your fare</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Breeze, Sun Country</td>
+                <td>40–50 lbs depending on fare class</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Ryanair, easyJet</td>
+                <td>44 lbs (20 kg) — paid add-on</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="ref-warn">⚠ Overweight bag fees typically start at $100–$200 per bag for bags over 50 lbs. Bags over 70 lbs (32 kg) are often refused entirely — you'll need to repack at the counter.</p>
+          <p class="ref-note">Limits shown are per bag. Most airlines allow 1–2 checked bags in economy with fees from $35–$75 each for the first bag. Always verify directly with your airline before travel — policies change.</p>
+        </div>
+      </div>
     </div>
 
     <!-- Temperature -->
@@ -560,13 +711,98 @@
         <input class="conv-input" id="v-ml" type="number" placeholder="0" oninput="fromMl()" step="any">
         <span class="conv-unit">ml</span>
       </div>
-      <div class="cruise-tip">Duty-free bottle sizes are often in ml. A standard <strong>750 ml</strong> bottle is <strong>25.4 fl oz</strong>. Most lines allow 1–2 bottles of wine at embarkation.</div>
+      <div class="cruise-tip">The TSA 3-1-1 limit is <strong>3.4 fl oz (100 ml)</strong> per container in carry-on. A standard duty-free bottle is <strong>750 ml (25.4 oz)</strong> — always check in or use sealed duty-free bags.</div>
+
+      <div class="expand-panel">
+        <button class="expand-toggle" onclick="togglePanel(this)">
+          ▸ TSA Liquids Rules &amp; Carry-On Size
+          <span class="expand-arrow">▾</span>
+        </button>
+        <div class="expand-body">
+          <p style="font-size:11px; font-weight:700; color:#1a3d6e; margin-bottom:8px;">✈ The 3-1-1 Rule (Carry-On Liquids)</p>
+          <table class="ref-table">
+            <tbody>
+              <tr>
+                <td class="ref-highlight" style="width:30%">3.4 oz / 100 ml</td>
+                <td>Maximum per container — your 4 oz shampoo (118 ml) will be confiscated</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">1 quart bag</td>
+                <td>One clear, zip-top bag per passenger. Everything must fit inside it.</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">1 bag total</td>
+                <td>One quart bag per person, removed from your bag at the security checkpoint</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Duty-free exempt</td>
+                <td>Liquids purchased past security or in sealed duty-free bags with receipt are allowed in carry-on. Keep the sealed bag intact until after your final connection.</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Prescription meds</td>
+                <td>Exempt from the 3-1-1 rule — declare them at the checkpoint. Always carry medications in your carry-on, never checked.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p style="font-size:11px; font-weight:700; color:#1a3d6e; margin: 12px 0 8px;">🧳 Carry-On Size Limits</p>
+          <table class="ref-table">
+            <thead>
+              <tr><th>Airline</th><th>Max Size (L × W × H)</th><th>Personal Item</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ref-highlight">American Airlines</td>
+                <td>22 × 14 × 9 in (56 × 36 × 23 cm)</td>
+                <td>18 × 14 × 8 in</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Delta</td>
+                <td>22 × 14 × 9 in (56 × 36 × 23 cm)</td>
+                <td>Under the seat</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">United</td>
+                <td>22 × 14 × 9 in (56 × 36 × 23 cm)</td>
+                <td>17 × 10 × 9 in</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Southwest</td>
+                <td>24 × 16 × 10 in (61 × 41 × 25 cm)</td>
+                <td>18.5 × 8.5 × 13.5 in</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">British Airways</td>
+                <td>22 × 18 × 10 in (56 × 45 × 25 cm)</td>
+                <td>16 × 12 × 6 in</td>
+              </tr>
+              <tr>
+                <td class="ref-highlight">Frontier, Allegiant</td>
+                <td>24 × 16 × 10 in — but only if you paid for it</td>
+                <td>18 × 14 × 8 in (free)</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="ref-warn">⚠ <strong>Enforcement reality:</strong> Carry-on rules are unevenly enforced at the gate. However, gate/jetway checking has become increasingly common on full flights — your bag may be tagged and checked at the jetway at no charge, or you may be asked to check it for a fee. Don't count on getting through unchecked. Budget carrier flights are enforced more aggressively than legacy carrier flights.</div>
+          <p class="ref-note">Sizes shown include wheels and handles. Airlines have been gradually tightening stated limits — always verify on your airline's website before your trip.</p>
+        </div>
+      </div>
     </div>
 
   </div>
 </div>
 
 <script>
+  // ── Expandable panels ─────────────────────────────────────────────────────
+  function togglePanel(btn) {
+    const body  = btn.nextElementSibling;
+    const arrow = btn.querySelector(".expand-arrow");
+    const open  = body.classList.toggle("open");
+    arrow.style.transform = open ? "rotate(180deg)" : "";
+    btn.querySelector("span:first-child").textContent =
+      (open ? "▾ " : "▸ ") + btn.querySelector("span:first-child").textContent.slice(2);
+  }
+
   // ── Tab switching ──────────────────────────────────────────────────────────
   function switchTab(name) {
     document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
@@ -682,11 +918,33 @@
     const v = parseFloat(document.getElementById("v-ml").value);
     document.getElementById("v-oz").value = isNaN(v) ? "" : round(v * 0.033814);
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
   function round(n) { return Math.round(n * 100) / 100; }
 
-  // ── Init ──────────────────────────────────────────────────────────────────
+  function loadRates() {
+    const statusEl = document.getElementById("rate-status");
+    fetch("https://api.frankfurter.app/latest?from=USD")
+      .then(r => r.json())
+      .then(data => {
+        rates = { USD: 1, ...data.rates };
+        ratesLoaded = true;
+        const d = new Date(data.date);
+        statusEl.textContent = "Live rates · Updated " + d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) + " · European Central Bank";
+        statusEl.className = "rate-status loaded";
+      })
+      .catch(() => {
+        rates = {USD:1,EUR:0.92,GBP:0.79,CAD:1.36,AUD:1.53,CHF:0.90,JPY:157,MXN:17.1,
+                 SGD:1.35,BSD:1.00,NOK:10.6,SEK:10.5,DKK:6.88,INR:83.5,BRL:5.05,
+                 SAR:3.75,AED:3.67,HKD:7.82,NZD:1.63};
+        statusEl.textContent = "Could not fetch live rates — showing approximate reference rates only.";
+        statusEl.className = "rate-status error";
+      })
+      .finally(() => {
+        document.getElementById("from-currency").value = "USD";
+        document.getElementById("to-currency").value   = "EUR";
+        convert();
+      });
+  }
+
   loadRates();
 </script>
 </body>
