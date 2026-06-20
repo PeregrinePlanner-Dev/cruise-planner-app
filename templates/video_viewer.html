@@ -628,4 +628,8 @@
   loadTripPanel();
   try {
     var q = JSON.parse(localStorage.getItem("peregrine_queued_videos") || "[]");
-    if (q.length 
+    if (q.length > 0) chipQueue.classList.add("visible");
+  } catch(e) {}
+</script>
+</body>
+</html>
