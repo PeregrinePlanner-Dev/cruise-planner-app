@@ -621,7 +621,14 @@
   }
 
   // --- Init ---
-  try { window.resizeTo(screen.availWidth, screen.availHeight); window.moveTo(0, 0); } catch(e) {}
+  try {
+    var W = Math.min(1440, screen.availWidth  - 40);
+    var H = Math.min(900,  screen.availHeight - 40);
+    var L = Math.round((screen.availWidth  - W) / 2);
+    var T = Math.round((screen.availHeight - H) / 2);
+    window.resizeTo(W, H);
+    window.moveTo(L, T);
+  } catch(e) {}
   buildFilters();
   updateInterestCount();
   loadInitialVideo();
