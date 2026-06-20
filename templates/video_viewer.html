@@ -3,237 +3,613 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Video Viewer · Cruise Planner</title>
+  <title>Video Viewer - Peregrine</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     html, body {
-      height: 100%;
-      overflow: hidden;
+      height: 100%; overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0b0d12;
-      color: #e2e8f0;
-      display: flex;
-      flex-direction: column;
+      background: #0b0d12; color: #e2e8f0;
+      display: flex; flex-direction: column;
     }
-
-    /* -- Header -- */
+    /* --- Header --- */
     .viewer-header {
-      background: #1a3d6e;
-      color: white;
-      padding: 8px 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-      height: 44px;
+      background: #1a3d6e; color: white;
+      padding: 0 18px; display: flex; align-items: center;
+      justify-content: space-between; flex-shrink: 0; height: 44px; gap: 10px;
     }
-
-    .viewer-header-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .header-logo { height: 26px; width: auto; }
+    .header-title { font-size: 13px; font-weight: 600; opacity: 0.9; }
+    .header-chips { display: flex; gap: 8px; align-items: center; }
+    .chip {
+      display: none; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 600; border-radius: 20px;
+      padding: 3px 10px; cursor: pointer; white-space: nowrap;
     }
-
-    .header-logo {
-      height: 28px;
-      width: auto;
-      display: block;
+    .chip.visible { display: inline-flex; }
+    .chip-sync { background: #f59e0b; color: #1c1917; animation: pulse 2s ease-in-out infinite; }
+    .chip-queue { background: #6366f1; color: #fff; animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    /* --- Layout --- */
+    .viewer-layout { display: flex; flex: 1; min-height: 0; }
+    /* --- Left: player --- */
+    .player-pane {
+      flex: 0 0 62%; display: flex; flex-direction: column;
+      border-right: 1px solid #1e2535; min-height: 0;
     }
-
-    .viewer-header-title {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.2px;
-      opacity: 0.9;
-    }
-
-    .sync-chip {
-      display: none;
-      background: #f59e0b;
-      color: #1c1917;
-      font-size: 11px;
-      font-weight: 600;
-      border-radius: 20px;
-      padding: 3px 10px;
-      cursor: pointer;
-      animation: pulse-chip 2s ease-in-out infinite;
-    }
-
-    .sync-chip.visible { display: inline-flex; align-items: center; gap: 5px; }
-
-    @keyframes pulse-chip {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-
-    /* -- Video area -- */
     .video-wrap {
-      flex: 1;
-      min-height: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #000;
+      flex: 1; min-height: 0; background: #000;
+      display: flex; align-items: center; justify-content: center;
     }
-
-    .video-wrap video {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      display: block;
-    }
-
-    /* -- Info bar below video -- */
+    .video-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
     .video-info {
-      flex-shrink: 0;
-      padding: 12px 20px 14px;
-      background: #111827;
-      border-top: 1px solid #1e2535;
+      flex-shrink: 0; padding: 10px 16px 12px;
+      background: #111827; border-top: 1px solid #1e2535;
     }
-
-    .video-info-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: #f1f5f9;
-      line-height: 1.3;
+    .info-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .info-text { flex: 1; min-width: 0; }
+    .info-title { font-size: 14px; font-weight: 600; color: #f1f5f9; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .info-context { font-size: 11px; color: #64748b; font-style: italic; margin-top: 2px; }
+    .info-category { display: inline-block; margin-top: 5px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; border-radius: 4px; padding: 2px 7px; }
+    .info-description { font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 7px; display: none; }
+    .info-description.visible { display: block; }
+    .info-personalization { font-size: 12px; color: #93c5fd; font-style: italic; margin-top: 4px; display: none; }
+    .info-personalization.visible { display: block; }
+    /* --- Interest button --- */
+    .interest-btn {
+      flex-shrink: 0; background: transparent; border: 1px solid #334155;
+      color: #94a3b8; font-size: 11px; font-weight: 600;
+      border-radius: 6px; padding: 5px 11px; cursor: pointer;
+      white-space: nowrap; transition: all 0.15s; font-family: inherit;
     }
-
-    .video-info-context {
-      font-size: 12px;
-      color: #64748b;
-      font-style: italic;
-      margin-top: 3px;
+    .interest-btn:hover { border-color: #6366f1; color: #a5b4fc; background: #1e1b4b; }
+    .interest-btn.added { border-color: #10b981; color: #34d399; background: #022c22; }
+    /* --- Right: browse pane --- */
+    .browse-pane { flex: 1; display: flex; flex-direction: column; min-height: 0; background: #0f1520; }
+    /* --- Tabs --- */
+    .tab-bar { display: flex; flex-shrink: 0; border-bottom: 1px solid #1e2535; background: #0b0d12; }
+    .tab-btn {
+      flex: 1; padding: 10px 0; font-size: 12px; font-weight: 600;
+      color: #64748b; background: transparent; border: none; cursor: pointer;
+      border-bottom: 2px solid transparent; transition: all 0.15s; font-family: inherit;
     }
-
-    .video-info-category {
-      display: inline-block;
-      margin-top: 7px;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #93c5fd;
-      background: #1e3a5f;
-      border-radius: 4px;
-      padding: 2px 7px;
+    .tab-btn:hover { color: #94a3b8; }
+    .tab-btn.active { color: #93c5fd; border-bottom-color: #3b82f6; }
+    .interest-count {
+      display: none; font-size: 10px; font-weight: 700;
+      background: #6366f1; color: #fff; border-radius: 10px; padding: 1px 6px; margin-left: 4px;
     }
+    .interest-count.visible { display: inline; }
+    /* --- Panel area --- */
+    .panel-area { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+    .panel-area::-webkit-scrollbar { width: 4px; }
+    .panel-area::-webkit-scrollbar-track { background: transparent; }
+    .panel-area::-webkit-scrollbar-thumb { background: #1e2535; border-radius: 2px; }
+    .panel { display: none; padding: 12px; }
+    .panel.active { display: block; }
+    /* --- Search --- */
+    .search-wrap { position: relative; margin-bottom: 10px; }
+    .search-input {
+      width: 100%; background: #1a2332; border: 1px solid #1e2d45;
+      border-radius: 8px; padding: 8px 12px 8px 34px;
+      font-size: 12px; color: #e2e8f0; outline: none; font-family: inherit; transition: border-color 0.15s;
+    }
+    .search-input:focus { border-color: #3b82f6; }
+    .search-input::placeholder { color: #4b5563; }
+    .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #4b5563; font-size: 13px; pointer-events: none; }
+    /* --- Filter chips --- */
+    .filter-section { margin-bottom: 10px; }
+    .filter-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; margin-bottom: 5px; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 4px; }
+    .filter-chip {
+      padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 500;
+      cursor: pointer; background: #1a2332; border: 1px solid #1e2d45;
+      color: #94a3b8; transition: all 0.12s; font-family: inherit;
+    }
+    .filter-chip:hover { border-color: #3b82f6; color: #93c5fd; }
+    .filter-chip.active { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+    /* --- Video cards --- */
+    .video-grid { display: flex; flex-direction: column; gap: 6px; }
+    .video-card {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+      background: #131c2b; border: 1px solid #1e2535; border-radius: 8px;
+      cursor: pointer; transition: all 0.12s;
+    }
+    .video-card:hover { background: #1a2640; border-color: #2d4a7a; }
+    .video-card.playing { background: #1e3a5f; border-color: #3b82f6; }
+    .card-play {
+      flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+      background: #1e2d45; display: flex; align-items: center;
+      justify-content: center; font-size: 10px; color: #93c5fd; transition: background 0.12s;
+    }
+    .video-card:hover .card-play, .video-card.playing .card-play { background: #3b82f6; color: #fff; }
+    .card-body { flex: 1; min-width: 0; }
+    .card-label { font-size: 12px; font-weight: 500; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .video-card.playing .card-label { color: #93c5fd; }
+    .card-cat { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+    .card-queued-badge {
+      flex-shrink: 0; font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; background: #4338ca; color: #c7d2fe; border-radius: 4px; padding: 2px 5px;
+    }
+    /* --- Section headers --- */
+    .section-header {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #475569; margin: 10px 0 6px;
+      padding-bottom: 4px; border-bottom: 1px solid #1e2535;
+    }
+    .section-header:first-child { margin-top: 0; }
+    /* --- Empty states --- */
+    .empty-state { padding: 24px 16px; text-align: center; color: #475569; font-size: 12px; line-height: 1.6; }
+    .empty-state strong { display: block; color: #64748b; margin-bottom: 4px; font-size: 13px; }
+    /* --- See Similar --- */
+    .similar-section { flex-shrink: 0; border-top: 1px solid #1e2535; background: #0b0d12; padding: 8px 12px 10px; max-height: 130px; }
+    .similar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; margin-bottom: 6px; }
+    .similar-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+    .similar-strip::-webkit-scrollbar { height: 3px; }
+    .similar-strip::-webkit-scrollbar-track { background: transparent; }
+    .similar-strip::-webkit-scrollbar-thumb { background: #1e2535; border-radius: 2px; }
+    .similar-card { flex-shrink: 0; width: 130px; padding: 7px 9px; background: #131c2b; border: 1px solid #1e2535; border-radius: 7px; cursor: pointer; transition: all 0.12s; }
+    .similar-card:hover { background: #1a2640; border-color: #2d4a7a; }
+    .similar-card-label { font-size: 11px; font-weight: 500; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .similar-card-cat { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+    .similar-empty { font-size: 11px; color: #374151; font-style: italic; padding: 4px 0; }
+    /* --- Suppress video controls --- */
+    video::-webkit-media-controls-overlay-cast-button { display: none !important; }
+    video::-webkit-media-controls-cast-button { display: none !important; }
+    video::-webkit-media-controls-mute-button { display: none !important; }
+    video::-webkit-media-controls-volume-slider { display: none !important; }
   </style>
 </head>
 <body>
 
 <div class="viewer-header">
-  <div class="viewer-header-left">
+  <div class="header-left">
     <img class="header-logo" src="/static/images/peregrine-logo.png" alt="Peregrine">
-    <span class="viewer-header-title">Video Viewer</span>
+    <span class="header-title">Video Viewer</span>
   </div>
-  <span class="sync-chip" id="sync-chip" title="The planner updated the context video — click to switch">
-    ✦ Trip video updated — <u>switch</u>
-  </span>
+  <div class="header-chips">
+    <span class="chip chip-queue" id="chip-queue">Adrian added videos - see Your Trip</span>
+    <span class="chip chip-sync" id="chip-sync">Trip video updated - <u>switch</u></span>
+  </div>
 </div>
 
-<div class="video-wrap">
-  <video id="main-video" muted playsinline controls autoplay></video>
-</div>
+<div class="viewer-layout">
 
-<div class="video-info">
-  <div class="video-info-title" id="info-title">Loading…</div>
-  <div class="video-info-context" id="info-context"></div>
-  <span class="video-info-category" id="info-category"></span>
+  <div class="player-pane">
+    <div class="video-wrap">
+      <video id="main-video" muted playsinline controls autoplay
+        disableRemotePlayback x-webkit-airplay="deny"
+        controlsList="nodownload nofullscreen"></video>
+    </div>
+    <div class="video-info">
+      <div class="info-top">
+        <div class="info-text">
+          <div class="info-title" id="info-title">Loading...</div>
+          <div class="info-context" id="info-context"></div>
+          <span class="info-category" id="info-category"></span>
+        </div>
+        <button class="interest-btn" id="interest-btn" onclick="toggleInterest()">+ I am interested</button>
+      </div>
+      <div class="info-description" id="info-description"></div>
+      <div class="info-personalization" id="info-personalization"></div>
+    </div>
+  </div>
+
+  <div class="browse-pane">
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-trip" onclick="switchTab('trip')">
+        Your Trip <span class="interest-count" id="interest-count"></span>
+      </button>
+      <button class="tab-btn" id="tab-browse" onclick="switchTab('browse')">Browse All</button>
+    </div>
+
+    <div class="panel-area">
+
+      <div class="panel active" id="panel-trip">
+        <div id="trip-queued-section"></div>
+        <div id="trip-interests-section"></div>
+        <div id="trip-context-section"></div>
+        <div class="empty-state" id="trip-empty" style="display:none">
+          <strong>Your trip videos will appear here</strong>
+          As you plan in the chat, Adrian will surface videos matching your destinations and interests.
+        </div>
+      </div>
+
+      <div class="panel" id="panel-browse">
+        <div class="search-wrap">
+          <span class="search-icon">&#9906;</span>
+          <input type="text" class="search-input" id="search-input"
+            placeholder="Search destinations, cities, attractions..."
+            oninput="onSearchInput()">
+        </div>
+        <div class="filter-section">
+          <div class="filter-label">Region</div>
+          <div class="chip-row" id="region-chips"></div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-label">Type</div>
+          <div class="chip-row" id="category-chips"></div>
+        </div>
+        <div class="video-grid" id="browse-grid"></div>
+        <div class="empty-state" id="browse-empty" style="display:none">
+          <strong>No videos found</strong>Try a different search or filter.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="similar-section">
+      <div class="similar-label">See Similar</div>
+      <div class="similar-strip" id="similar-strip">
+        <span class="similar-empty">Play a video to see related content</span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
-  const videoEl     = document.getElementById("main-video");
-  const infoTitle   = document.getElementById("info-title");
-  const infoContext = document.getElementById("info-context");
-  const infoCat     = document.getElementById("info-category");
-  const syncChip    = document.getElementById("sync-chip");
-
-  let currentUrl     = "";
-  let isOnContextVid = true;
-  let pendingContext = null;
-
-  const CAT_LABELS = {
-    airport:            "Airports",
-    cruise_terminal:    "Terminals",
-    destination:        "Destinations",
-    attraction:         "Attractions",
-    castle:             "Castles",
-    cathedral:          "Cathedrals",
-    monument:           "Monuments",
-    museum:             "Museums",
-    nature:             "Nature",
-    "pre-cruise-hotel": "Hotels",
-    resort:             "Resorts",
-    "river-port":       "River Ports",
-    "theme-park":       "Theme Parks",
-    zoo:                "Zoos",
+  var CAT_CFG = {
+    airport:            { label: "Airport",       color: "#0ea5e9" },
+    cruise_terminal:    { label: "Terminal",      color: "#3b82f6" },
+    destination:        { label: "Destination",   color: "#10b981" },
+    attraction:         { label: "Attraction",    color: "#f59e0b" },
+    castle:             { label: "Castle",        color: "#8b5cf6" },
+    cathedral:          { label: "Cathedral",     color: "#ec4899" },
+    monument:           { label: "Monument",      color: "#6366f1" },
+    museum:             { label: "Museum",        color: "#14b8a6" },
+    nature:             { label: "Nature",        color: "#22c55e" },
+    "pre-cruise-hotel": { label: "Hotel",         color: "#f97316" },
+    resort:             { label: "Resort",        color: "#eab308" },
+    "river-port":       { label: "River Port",    color: "#06b6d4" },
+    "theme-park":       { label: "Theme Park",    color: "#ef4444" },
+    zoo:                { label: "Zoo",           color: "#84cc16" }
   };
 
+  var REGIONS = [
+    "Caribbean","Eastern Mediterranean","Western Mediterranean",
+    "Northern Europe & Fjords","Alaska","Mexican Riviera",
+    "Bahamas & Bermuda","New England & Canada","Hawaii",
+    "Panama Canal","Transatlantic","South America",
+    "Antarctica","Asia","Australia & New Zealand",
+    "Tahiti & French Polynesia","Africa","River Cruise"
+  ];
+
+  var BROWSE_CATS = [
+    "destination","attraction","monument","museum","castle",
+    "cathedral","nature","resort","cruise_terminal","airport",
+    "river-port","theme-park","zoo","pre-cruise-hotel"
+  ];
+
+  var R2 = "https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev";
+  var DEFAULT_VIDEO = {
+    url: R2 + "/cruise-terminals/port-everglades-terminal-3.mp4",
+    label: "Port Everglades - Fort Lauderdale",
+    context: "your departure port",
+    category: "cruise_terminal",
+    file_path: "cruise-terminals/port-everglades-terminal-3.mp4"
+  };
+
+  var currentVideo   = null;
+  var isOnContextVid = true;
+  var pendingContext = null;
+  var activeTab      = "trip";
+  var browseRegion   = null;
+  var browseCategory = null;
+  var searchTimer    = null;
+
+  var videoEl      = document.getElementById("main-video");
+  var infoTitle    = document.getElementById("info-title");
+  var infoContext  = document.getElementById("info-context");
+  var infoCat      = document.getElementById("info-category");
+  var infoDesc     = document.getElementById("info-description");
+  var infoPersonal = document.getElementById("info-personalization");
+  var interestBtn  = document.getElementById("interest-btn");
+  var intCount     = document.getElementById("interest-count");
+  var chipSync     = document.getElementById("chip-sync");
+  var chipQueue    = document.getElementById("chip-queue");
+
   function catLabel(c) {
-    return CAT_LABELS[c] || (c || "").replace(/-|_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    return (CAT_CFG[c] || {}).label || (c||"").replace(/[-_]/g," ").replace(/\b\w/g,function(l){return l.toUpperCase();});
+  }
+  function catColor(c) {
+    return (CAT_CFG[c] || {}).color || "#64748b";
   }
 
-  function playVideo(url, title, context, category, userInitiated) {
+  function playVideo(rec, userInitiated) {
     if (userInitiated) isOnContextVid = false;
-
-    currentUrl = url;
+    currentVideo = rec;
+    var url = rec.url || (R2 + "/" + (rec.file_path || ""));
     videoEl.src = url;
     videoEl.load();
-    videoEl.play().catch(() => {});
+    videoEl.play().catch(function(){});
 
-    infoTitle.textContent   = title || "";
-    infoContext.textContent = context || "";
+    infoTitle.textContent   = rec.label || rec.title || "";
+    infoContext.textContent = rec.context || "";
 
-    const label = catLabel(category);
-    infoCat.textContent  = label;
-    infoCat.style.display = category ? "" : "none";
+    var cat = rec.category || "";
+    infoCat.textContent = catLabel(cat);
+    infoCat.style.cssText = "display:inline-block;margin-top:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;border-radius:4px;padding:2px 7px;background:" + catColor(cat) + "22;color:" + catColor(cat) + ";";
+
+    if (rec.short_description) {
+      infoDesc.textContent = rec.short_description;
+      infoDesc.classList.add("visible");
+    } else {
+      infoDesc.textContent = "";
+      infoDesc.classList.remove("visible");
+    }
+    infoPersonal.textContent = "";
+    infoPersonal.classList.remove("visible");
+
+    updateInterestBtn();
+
+    document.querySelectorAll(".video-card,.similar-card").forEach(function(el){
+      el.classList.toggle("playing", el.dataset.url === url);
+    });
+
+    loadSimilar(rec.file_path || "");
   }
 
   function loadInitialVideo() {
     try {
-      const stored = localStorage.getItem("peregrine_context_video");
+      var stored = localStorage.getItem("peregrine_context_video");
       if (stored) {
-        const v = JSON.parse(stored);
-        playVideo(v.url, v.title, v.context, v.category || "", false);
-        return;
+        var v = JSON.parse(stored);
+        if (v && v.url) { playVideo(v, false); return; }
       }
-    } catch {}
-    playVideo(
-      "https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev/cruise-terminals/port-everglades-terminal-3.mp4",
-      "Port Everglades · Fort Lauderdale",
-      "your departure port",
-      "cruise_terminal",
-      false
-    );
+    } catch(e) {}
+    playVideo(DEFAULT_VIDEO, false);
   }
 
-  // Listen for context updates from the planner (localStorage storage event)
-  window.addEventListener("storage", (e) => {
-    if (e.key !== "peregrine_context_video") return;
-    try {
-      const v = JSON.parse(e.newValue);
-      if (!v || v.url === currentUrl) return;
-
-      if (isOnContextVid) {
-        playVideo(v.url, v.title, v.context, v.category || "", false);
-        isOnContextVid = true;
-      } else {
-        pendingContext = v;
-        syncChip.classList.add("visible");
-      }
-    } catch {}
+  window.addEventListener("storage", function(e) {
+    if (e.key === "peregrine_context_video") {
+      try {
+        var v = JSON.parse(e.newValue);
+        if (!v || !v.url) return;
+        var curUrl = currentVideo ? (currentVideo.url || R2 + "/" + currentVideo.file_path) : "";
+        if (v.url === curUrl) return;
+        if (isOnContextVid) {
+          playVideo(v, false);
+          isOnContextVid = true;
+        } else {
+          pendingContext = v;
+          chipSync.classList.add("visible");
+        }
+      } catch(e) {}
+    }
+    if (e.key === "peregrine_queued_videos") {
+      loadTripPanel();
+      chipQueue.classList.add("visible");
+    }
+    if (e.key === "peregrine_video_interests") {
+      updateInterestBtn();
+      updateInterestCount();
+      if (activeTab === "trip") loadTripPanel();
+    }
   });
 
-  syncChip.addEventListener("click", () => {
+  chipSync.addEventListener("click", function() {
     if (!pendingContext) return;
-    playVideo(pendingContext.url, pendingContext.title, pendingContext.context, pendingContext.category || "", false);
+    playVideo(pendingContext, false);
     isOnContextVid = true;
-    syncChip.classList.remove("visible");
+    chipSync.classList.remove("visible");
     pendingContext = null;
   });
 
+  chipQueue.addEventListener("click", function() {
+    switchTab("trip");
+    chipQueue.classList.remove("visible");
+  });
+
+  function getInterests() {
+    try { return JSON.parse(localStorage.getItem("peregrine_video_interests") || "[]"); }
+    catch(e) { return []; }
+  }
+
+  function toggleInterest() {
+    if (!currentVideo) return;
+    var fp = currentVideo.file_path || currentVideo.url || "";
+    var interests = getInterests();
+    var idx = interests.findIndex(function(i){ return i.file_path === fp; });
+    if (idx >= 0) {
+      interests.splice(idx, 1);
+    } else {
+      interests.push({
+        file_path:           fp,
+        label:               currentVideo.label || currentVideo.title || "",
+        category:            currentVideo.category || "",
+        theme_tags:          currentVideo.theme_tags || [],
+        region_tags:         currentVideo.region_tags || [],
+        port_tags:           currentVideo.port_tags || [],
+        port_character_tags: currentVideo.port_character_tags || [],
+        added_at:            new Date().toISOString()
+      });
+    }
+    localStorage.setItem("peregrine_video_interests", JSON.stringify(interests));
+    updateInterestBtn();
+    updateInterestCount();
+  }
+
+  function updateInterestBtn() {
+    if (!currentVideo) return;
+    var fp = currentVideo.file_path || currentVideo.url || "";
+    var already = getInterests().some(function(i){ return i.file_path === fp; });
+    interestBtn.textContent = already ? "- Remove interest" : "+ I am interested";
+    interestBtn.classList.toggle("added", already);
+  }
+
+  function updateInterestCount() {
+    var n = getInterests().length;
+    if (n > 0) { intCount.textContent = n; intCount.classList.add("visible"); }
+    else { intCount.classList.remove("visible"); }
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
+    document.getElementById("tab-" + tab).classList.add("active");
+    document.querySelectorAll(".panel").forEach(function(p){ p.classList.remove("active"); });
+    document.getElementById("panel-" + tab).classList.add("active");
+    if (tab === "trip") loadTripPanel();
+    if (tab === "browse") loadBrowsePanel();
+  }
+
+  function loadTripPanel() {
+    var queuedSec   = document.getElementById("trip-queued-section");
+    var interestSec = document.getElementById("trip-interests-section");
+    var contextSec  = document.getElementById("trip-context-section");
+    var emptyEl     = document.getElementById("trip-empty");
+    var hasContent  = false;
+
+    // Adrian-queued videos
+    try {
+      var queued = JSON.parse(localStorage.getItem("peregrine_queued_videos") || "[]");
+      if (queued.length > 0) {
+        hasContent = true;
+        queuedSec.innerHTML = '<div class="section-header">Adrian added these for you</div>'
+          + '<div class="video-grid">' + queued.map(function(v){ return videoCard(v, true); }).join("") + '</div>';
+      } else { queuedSec.innerHTML = ""; }
+    } catch(e) { queuedSec.innerHTML = ""; }
+
+    // Accumulated interests
+    var interests = getInterests();
+    if (interests.length > 0) {
+      hasContent = true;
+      interestSec.innerHTML = '<div class="section-header">Your interests</div>'
+        + '<div class="video-grid">' + interests.map(function(v){ return videoCard(v, false); }).join("") + '</div>';
+    } else { interestSec.innerHTML = ""; }
+
+    // Context-category videos
+    var cat = currentVideo ? (currentVideo.category || "") : "";
+    if (cat) {
+      fetch("/api/videos/browse?category=" + encodeURIComponent(cat) + "&limit=12")
+        .then(function(r){ return r.json(); })
+        .then(function(vids) {
+          var curUrl = currentVideo ? (currentVideo.url || R2 + "/" + currentVideo.file_path) : "";
+          var filtered = vids.filter(function(v){
+            return (v.url || R2 + "/" + v.file_path) !== curUrl;
+          }).slice(0, 8);
+          if (filtered.length > 0) {
+            hasContent = true;
+            contextSec.innerHTML = '<div class="section-header">More ' + catLabel(cat) + ' videos</div>'
+              + '<div class="video-grid">' + filtered.map(function(v){ return videoCard(v, false); }).join("") + '</div>';
+          } else { contextSec.innerHTML = ""; }
+          emptyEl.style.display = hasContent ? "none" : "";
+        })
+        .catch(function(){ contextSec.innerHTML = ""; });
+    } else {
+      contextSec.innerHTML = "";
+      emptyEl.style.display = hasContent ? "none" : "";
+    }
+  }
+
+  function buildFilterChips() {
+    var regionRow = document.getElementById("region-chips");
+    regionRow.innerHTML = REGIONS.map(function(r){
+      return '<button class="filter-chip" onclick="setRegion(\'' + r.replace(/'/g,"\\'") + '\')" data-region="' + r + '">' + r + '</button>';
+    }).join("");
+    var catRow = document.getElementById("category-chips");
+    catRow.innerHTML = BROWSE_CATS.map(function(c){
+      return '<button class="filter-chip" onclick="setCat(\'' + c + '\')" data-cat="' + c + '">' + catLabel(c) + '</button>';
+    }).join("");
+  }
+
+  function setRegion(r) {
+    browseRegion = browseRegion === r ? null : r;
+    document.querySelectorAll("[data-region]").forEach(function(el){
+      el.classList.toggle("active", el.dataset.region === browseRegion);
+    });
+    loadBrowseResults();
+  }
+
+  function setCat(c) {
+    browseCategory = browseCategory === c ? null : c;
+    document.querySelectorAll("[data-cat]").forEach(function(el){
+      el.classList.toggle("active", el.dataset.cat === browseCategory);
+    });
+    loadBrowseResults();
+  }
+
+  function onSearchInput() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(loadBrowseResults, 320);
+  }
+
+  function loadBrowsePanel() {
+    buildFilterChips();
+    loadBrowseResults();
+  }
+
+  function loadBrowseResults() {
+    var q    = (document.getElementById("search-input").value || "").trim();
+    var grid  = document.getElementById("browse-grid");
+    var empty = document.getElementById("browse-empty");
+    var url   = "/api/videos/browse?limit=30";
+    if (browseCategory) url += "&category=" + encodeURIComponent(browseCategory);
+    if (browseRegion)   url += "&region="   + encodeURIComponent(browseRegion);
+    if (q)              url += "&q="        + encodeURIComponent(q);
+    grid.innerHTML = '<div style="padding:16px;text-align:center;color:#475569;font-size:12px;">Loading...</div>';
+    empty.style.display = "none";
+    fetch(url)
+      .then(function(r){ return r.json(); })
+      .then(function(vids) {
+        if (!vids || vids.length === 0) {
+          grid.innerHTML = "";
+          empty.style.display = "";
+        } else {
+          grid.innerHTML = vids.map(function(v){ return videoCard(v, false); }).join("");
+        }
+      })
+      .catch(function(){ grid.innerHTML = ""; empty.style.display = ""; });
+  }
+
+  function loadSimilar(filePath) {
+    var strip = document.getElementById("similar-strip");
+    if (!filePath) { strip.innerHTML = '<span class="similar-empty">Play a video to see related content</span>'; return; }
+    strip.innerHTML = '<span class="similar-empty">Loading...</span>';
+    fetch("/api/videos/similar?file_path=" + encodeURIComponent(filePath) + "&limit=8")
+      .then(function(r){ return r.json(); })
+      .then(function(vids) {
+        if (!vids || vids.length === 0) {
+          strip.innerHTML = '<span class="similar-empty">No similar videos yet - more content coming</span>';
+        } else {
+          strip.innerHTML = vids.map(function(v) {
+            var vurl = v.url || (R2 + "/" + v.file_path);
+            var col  = catColor(v.category || "");
+            var rec  = JSON.stringify(v).replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+            return '<div class="similar-card" data-url="' + vurl + '" onclick=\'playVideo(' + rec + ', true)\'>'
+              + '<div class="similar-card-label">' + (v.label||"") + '</div>'
+              + '<div class="similar-card-cat" style="color:' + col + '">' + catLabel(v.category||"") + '</div>'
+              + '</div>';
+          }).join("");
+        }
+      })
+      .catch(function(){ strip.innerHTML = '<span class="similar-empty">Unable to load</span>'; });
+  }
+
+  function videoCard(v, queued) {
+    var url      = v.url || (R2 + "/" + (v.file_path || ""));
+    var col      = catColor(v.category || "");
+    var isPlay   = currentVideo ? url === (currentVideo.url || R2 + "/" + currentVideo.file_path) : false;
+    var badge    = queued ? '<span class="card-queued-badge">New</span>' : "";
+    var rec      = JSON.stringify(v).replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    return '<div class="video-card' + (isPlay?" playing":"") + '" data-url="' + url + '" onclick=\'playVideo(' + rec + ', true); isOnContextVid=false;\'>'
+      + '<div class="card-play">&#9654;</div>'
+      + '<div class="card-body">'
+      + '<div class="card-label">' + (v.label||v.title||"") + '</div>'
+      + '<div class="card-cat" style="color:' + col + '">' + catLabel(v.category||"") + '</div>'
+      + '</div>' + badge + '</div>';
+  }
+
+  // --- Init ---
+  buildFilterChips();
+  updateInterestCount();
   loadInitialVideo();
+  loadTripPanel();
+  try {
+    var q = JSON.parse(localStorage.getItem("peregrine_queued_videos") || "[]");
+    if (q.length > 0) chipQueue.classList.add("visible");
+  } catch(e) {}
 </script>
 </body>
 </html>

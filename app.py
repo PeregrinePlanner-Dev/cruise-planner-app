@@ -1579,6 +1579,52 @@ def drink_packages_route():
         return jsonify({"packages": []})
 
 
+@app.route("/api/videos/browse")
+def api_videos_browse():
+    """Browse videos by category, region, and/or text search."""
+    try:
+        params = {"active": "eq.true"}
+        category = request.args.get("category", "").strip()
+        q        = request.args.get("q", "").strip()
+        limit    = request.args.get("limit", "24")
+        if category:
+            params["category"] = f"eq.{category}"
+        if q:
+            params["label"] = f"ilike.*{q}*"
+        params["limit"] = limit
+        rows = sb_get("videos", params)
+        return jsonify(rows or [])
+    except Exception as e:
+        print(f"api_videos_browse error: {e}")
+        return jsonify([])
+
+
+@app.route("/api/videos/similar")
+def api_videos_similar():
+    """Return videos in the same category as the given file_path, excluding it."""
+    try:
+        file_path = request.args.get("file_path", "").strip()
+        limit     = request.args.get("limit", "8")
+        if not file_path:
+            return jsonify([])
+        source = sb_get("videos", {"file_path": f"eq.{file_path}", "active": "eq.true"})
+        if not source:
+            return jsonify([])
+        category = source[0].get("category", "")
+        if not category:
+            return jsonify([])
+        rows = sb_get("videos", {
+            "category":  f"eq.{category}",
+            "file_path": f"neq.{file_path}",
+            "active":    "eq.true",
+            "limit":     limit,
+        })
+        return jsonify(rows or [])
+    except Exception as e:
+        print(f"api_videos_similar error: {e}")
+        return jsonify([])
+
+
 @app.route("/api/session/check")
 def session_check():
     """Check if there is an existing session with profile data."""
