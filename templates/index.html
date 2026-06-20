@@ -625,6 +625,11 @@
       .intel-panel    { min-height: 200px; flex: none; }
       .alerts-panel   { min-height: 150px; flex: none; }
     }
+
+    video::-webkit-media-controls-overlay-cast-button { display: none !important; }
+    video::-webkit-media-controls-cast-button { display: none !important; }
+    video::-webkit-media-controls-mute-button { display: none !important; }
+    video::-webkit-media-controls-volume-slider { display: none !important; }
   </style>
 </head>
 <body>
@@ -757,7 +762,7 @@
   <!-- Right — Video + Insider Intel -->
   <div class="col-intel">
     <div class="video-panel" id="video-panel">
-      <video id="destination-video" muted playsinline controls>
+      <video id="destination-video" muted playsinline controls disableRemotePlayback x-webkit-airplay="deny" controlsList="nodownload nofullscreen">
         <source src="https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev/cruise-terminals/port-everglades-terminal-3.mp4" type="video/mp4">
       </video>
       <button id="expand-video-btn" title="Open video explorer">
@@ -1643,9 +1648,8 @@
   }
 
   document.getElementById("expand-video-btn")
-    ?.addEventListener("click", () => openPanel("/video-viewer","peregrine_video_viewer",1280,760));
+    ?.addEventListener("click", () => openPanel("/video-viewer","peregrine_video_viewer", Math.min(1600, screen.availWidth - 40), screen.availHeight - 60));
 
 </script>
 </body>
 </html>
-        

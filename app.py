@@ -1511,7 +1511,7 @@ def videos_browse():
         q        = (request.args.get("q") or "").strip().lower()
         cat      = (request.args.get("category") or "").strip().lower()
 
-        params = {"select": "file_path,label,context,category", "active": "eq.true", "order": "label.asc"}
+        params = {"select": "file_path,label,context,category", "order": "label.asc"}
         if cat and cat != "all":
             params["category"] = f"eq.{cat}"
 
@@ -1534,13 +1534,9 @@ def videos_browse():
                 "category": r.get("category") or "",
             })
 
-        # Distinct categories for filter pills
-        all_rows = sb_get("videos", {"select": "category", "active": "eq.true"}) or []
-        categories = sorted({r["category"] for r in all_rows if r.get("category")})
-
-        return jsonify({"videos": out, "categories": categories})
+        return jsonify(out)
     except Exception as e:
-        return jsonify({"videos": [], "categories": [], "error": str(e)})
+        return jsonify([])
 
 
 @app.route("/converter")
@@ -1579,26 +1575,6 @@ def drink_packages_route():
         return jsonify({"packages": []})
 
 
-@app.route("/api/videos/browse")
-def api_videos_browse():
-    """Browse videos by category, region, and/or text search."""
-    try:
-        params = {"active": "eq.true"}
-        category = request.args.get("category", "").strip()
-        q        = request.args.get("q", "").strip()
-        limit    = request.args.get("limit", "24")
-        if category:
-            params["category"] = f"eq.{category}"
-        if q:
-            params["label"] = f"ilike.*{q}*"
-        params["limit"] = limit
-        rows = sb_get("videos", params)
-        return jsonify(rows or [])
-    except Exception as e:
-        print(f"api_videos_browse error: {e}")
-        return jsonify([])
-
-
 @app.route("/api/videos/similar")
 def api_videos_similar():
     """Return videos in the same category as the given file_path, excluding it."""
@@ -1607,7 +1583,7 @@ def api_videos_similar():
         limit     = request.args.get("limit", "8")
         if not file_path:
             return jsonify([])
-        source = sb_get("videos", {"file_path": f"eq.{file_path}", "active": "eq.true"})
+        source = sb_get("videos", {"file_path": f"eq.{file_path}"})
         if not source:
             return jsonify([])
         category = source[0].get("category", "")
@@ -1616,7 +1592,6 @@ def api_videos_similar():
         rows = sb_get("videos", {
             "category":  f"eq.{category}",
             "file_path": f"neq.{file_path}",
-            "active":    "eq.true",
             "limit":     limit,
         })
         return jsonify(rows or [])

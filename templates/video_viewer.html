@@ -109,6 +109,21 @@
     }
     .filter-chip:hover { border-color: #3b82f6; color: #93c5fd; }
     .filter-chip.active { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+    /* --- Filter dropdowns --- */
+    .filter-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .filter-row > div { flex: 1; min-width: 0; }
+    .filter-label-sm { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #475569; margin-bottom: 4px; }
+    .filter-select {
+      width: 100%; background: #1a2332; border: 1px solid #1e2d45;
+      border-radius: 8px; padding: 6px 28px 6px 10px;
+      font-size: 12px; color: #e2e8f0; outline: none; font-family: inherit;
+      cursor: pointer; transition: border-color 0.15s;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234b5563'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center;
+    }
+    .filter-select:focus { border-color: #3b82f6; }
+    .filter-select option { background: #1a2332; color: #e2e8f0; }
     /* --- Video cards --- */
     .video-grid { display: flex; flex-direction: column; gap: 6px; }
     .video-card {
@@ -223,13 +238,19 @@
             placeholder="Search destinations, cities, attractions..."
             oninput="onSearchInput()">
         </div>
-        <div class="filter-section">
-          <div class="filter-label">Region</div>
-          <div class="chip-row" id="region-chips"></div>
-        </div>
-        <div class="filter-section">
-          <div class="filter-label">Type</div>
-          <div class="chip-row" id="category-chips"></div>
+        <div class="filter-row">
+          <div>
+            <div class="filter-label-sm">Region</div>
+            <select id="region-select" class="filter-select" onchange="setRegion(this.value)">
+              <option value="">All Regions</option>
+            </select>
+          </div>
+          <div>
+            <div class="filter-label-sm">Type</div>
+            <select id="cat-select" class="filter-select" onchange="setCat(this.value)">
+              <option value="">All Types</option>
+            </select>
+          </div>
         </div>
         <div class="video-grid" id="browse-grid"></div>
         <div class="empty-state" id="browse-empty" style="display:none">
@@ -267,12 +288,11 @@
   };
 
   var REGIONS = [
-    "Caribbean","Eastern Mediterranean","Western Mediterranean",
-    "Northern Europe & Fjords","Alaska","Mexican Riviera",
-    "Bahamas & Bermuda","New England & Canada","Hawaii",
-    "Panama Canal","Transatlantic","South America",
-    "Antarctica","Asia","Australia & New Zealand",
-    "Tahiti & French Polynesia","Africa","River Cruise"
+    "Africa","Alaska","Antarctica","Asia","Australia & New Zealand",
+    "Bahamas & Bermuda","Caribbean","Eastern Mediterranean","Hawaii",
+    "Mexican Riviera","New England & Canada","Northern Europe & Fjords",
+    "Panama Canal","River Cruise","South America",
+    "Tahiti & French Polynesia","Transatlantic","Western Mediterranean"
   ];
 
   var BROWSE_CATS = [
@@ -503,30 +523,29 @@
     }
   }
 
-  function buildFilterChips() {
-    var regionRow = document.getElementById("region-chips");
-    regionRow.innerHTML = REGIONS.map(function(r){
-      return '<button class="filter-chip" onclick="setRegion(\'' + r.replace(/'/g,"\\'") + '\')" data-region="' + r + '">' + r + '</button>';
-    }).join("");
-    var catRow = document.getElementById("category-chips");
-    catRow.innerHTML = BROWSE_CATS.map(function(c){
-      return '<button class="filter-chip" onclick="setCat(\'' + c + '\')" data-cat="' + c + '">' + catLabel(c) + '</button>';
-    }).join("");
+  function buildFilters() {
+    var rs = document.getElementById("region-select");
+    if (rs && rs.options.length <= 1) {
+      REGIONS.forEach(function(r) {
+        var o = document.createElement("option"); o.value = r; o.textContent = r; rs.appendChild(o);
+      });
+    }
+    var cs = document.getElementById("cat-select");
+    if (cs && cs.options.length <= 1) {
+      var sorted = BROWSE_CATS.slice().sort(function(a,b){ return catLabel(a).localeCompare(catLabel(b)); });
+      sorted.forEach(function(c) {
+        var o = document.createElement("option"); o.value = c; o.textContent = catLabel(c); cs.appendChild(o);
+      });
+    }
   }
 
   function setRegion(r) {
-    browseRegion = browseRegion === r ? null : r;
-    document.querySelectorAll("[data-region]").forEach(function(el){
-      el.classList.toggle("active", el.dataset.region === browseRegion);
-    });
+    browseRegion = r || null;
     loadBrowseResults();
   }
 
   function setCat(c) {
-    browseCategory = browseCategory === c ? null : c;
-    document.querySelectorAll("[data-cat]").forEach(function(el){
-      el.classList.toggle("active", el.dataset.cat === browseCategory);
-    });
+    browseCategory = c || null;
     loadBrowseResults();
   }
 
@@ -536,7 +555,7 @@
   }
 
   function loadBrowsePanel() {
-    buildFilterChips();
+    buildFilters();
     loadBrowseResults();
   }
 
@@ -602,7 +621,7 @@
   }
 
   // --- Init ---
-  buildFilterChips();
+  buildFilters();
   updateInterestCount();
   loadInitialVideo();
   loadTripPanel();
