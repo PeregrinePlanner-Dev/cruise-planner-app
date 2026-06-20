@@ -35,8 +35,8 @@
     .viewer-layout { display: flex; flex: 1; min-height: 0; }
     /* --- Left: player --- */
     .player-pane {
-      flex: 0 0 62%; display: flex; flex-direction: column;
-      border-right: 1px solid #1e2535; min-height: 0;
+      flex: 1 1 0; display: flex; flex-direction: column;
+      border-right: 1px solid #1e2535; min-height: 0; overflow: hidden;
     }
     .video-wrap {
       flex: 1; min-height: 0; background: #000;
@@ -66,7 +66,7 @@
     .interest-btn:hover { border-color: #6366f1; color: #a5b4fc; background: #1e1b4b; }
     .interest-btn.added { border-color: #10b981; color: #34d399; background: #022c22; }
     /* --- Right: browse pane --- */
-    .browse-pane { flex: 1; display: flex; flex-direction: column; min-height: 0; background: #0f1520; }
+    .browse-pane { flex: 0 0 290px; width: 290px; display: flex; flex-direction: column; min-height: 0; background: #0f1520; }
     /* --- Tabs --- */
     .tab-bar { display: flex; flex-shrink: 0; border-bottom: 1px solid #1e2535; background: #0b0d12; }
     .tab-btn {
@@ -289,7 +289,7 @@
 
   var REGIONS = [
     "Africa","Alaska","Antarctica","Asia","Australia & New Zealand",
-    "Bahamas & Bermuda","Caribbean","Eastern Mediterranean","Hawaii",
+    "Bahamas","Bermuda","Caribbean","Eastern Mediterranean","Hawaii",
     "Mexican Riviera","New England & Canada","Northern Europe & Fjords",
     "Panama Canal","River Cruise","South America",
     "Tahiti & French Polynesia","Transatlantic","Western Mediterranean"
@@ -621,14 +621,11 @@
   }
 
   // --- Init ---
+  try { window.resizeTo(screen.availWidth, screen.availHeight); window.moveTo(0, 0); } catch(e) {}
   buildFilters();
   updateInterestCount();
   loadInitialVideo();
   loadTripPanel();
   try {
     var q = JSON.parse(localStorage.getItem("peregrine_queued_videos") || "[]");
-    if (q.length > 0) chipQueue.classList.add("visible");
-  } catch(e) {}
-</script>
-</body>
-</html>
+    if (q.length 
