@@ -261,9 +261,9 @@
     </div>
 
     <div class="similar-section">
-      <div class="similar-label">See Similar</div>
+      <div class="similar-label">More to Explore</div>
       <div class="similar-strip" id="similar-strip">
-        <span class="similar-empty">Play a video to see related content</span>
+        <span class="similar-empty">Play a video to see more</span>
       </div>
     </div>
   </div>
@@ -599,7 +599,7 @@
       .then(function(r){ return r.json(); })
       .then(function(vids) {
         if (!vids || vids.length === 0) {
-          strip.innerHTML = '<span class="similar-empty">No similar videos yet - more content coming</span>';
+          strip.innerHTML = '<span class="similar-empty">More coming soon</span>';
         } else {
           strip.innerHTML = vids.map(function(v) {
             var vurl = v.url || (R2 + "/" + v.file_path);
