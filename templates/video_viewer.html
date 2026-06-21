@@ -502,7 +502,7 @@
     // Context-category videos
     var cat = currentVideo ? (currentVideo.category || "") : "";
     if (cat) {
-      fetch("/api/videos/browse?category=" + encodeURIComponent(cat) + "&limit=12")
+      fetch("/api/videos/browse?category=" + encodeURIComponent(cat) + "&limit=10")
         .then(function(r){ return r.json(); })
         .then(function(vids) {
           var curUrl = currentVideo ? (currentVideo.url || R2 + "/" + currentVideo.file_path) : "";
@@ -560,10 +560,19 @@
   }
 
   function loadBrowseResults() {
-    var q    = (document.getElementById("search-input").value || "").trim();
+    var q     = (document.getElementById("search-input").value || "").trim();
     var grid  = document.getElementById("browse-grid");
     var empty = document.getElementById("browse-empty");
-    var url   = "/api/videos/browse?limit=30";
+
+    // Require at least one filter — avoids dumping the entire library
+    if (!browseCategory && !browseRegion && !q) {
+      grid.innerHTML = '<div class="empty-state"><strong>Pick a region or type to browse</strong>'
+        + 'Use the dropdowns above to explore by sailing region or video category, or search by name.</div>';
+      empty.style.display = "none";
+      return;
+    }
+
+    var url = "/api/videos/browse?limit=60";
     if (browseCategory) url += "&category=" + encodeURIComponent(browseCategory);
     if (browseRegion)   url += "&region="   + encodeURIComponent(browseRegion);
     if (q)              url += "&q="        + encodeURIComponent(q);

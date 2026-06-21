@@ -1505,37 +1505,54 @@ def video_viewer_page():
 @app.route("/api/videos/browse")
 def videos_browse():
     """Return active videos for the browser panel.
-    Query params: ?q=<search_text>  ?category=<category>
+    Query params:
+      ?q=<search_text>   text search on label
+      ?category=<cat>    exact category match
+      ?region=<region>   region_tags contains match
+      ?limit=<n>         max results (default 40, hard cap 100)
     """
     try:
-        q        = (request.args.get("q") or "").strip().lower()
-        cat      = (request.args.get("category") or "").strip().lower()
+        q      = (request.args.get("q")       or "").strip().lower()
+        cat    = (request.args.get("category") or "").strip().lower()
+        region = (request.args.get("region")   or "").strip()
+        try:
+            limit = min(int(request.args.get("limit") or 40), 100)
+        except ValueError:
+            limit = 40
 
-        params = {"select": "file_path,label,context,category", "order": "label.asc"}
+        params = {
+            "select": "file_path,label,category,short_description",
+            "active": "eq.true",
+            "order":  "label.asc",
+            "limit":  str(limit),
+        }
         if cat and cat != "all":
             params["category"] = f"eq.{cat}"
+        if region:
+            import json as _json
+            params["region_tags"] = f'cs.["{region}"]'
 
         rows = sb_get("videos", params) or []
 
         if q:
             rows = [r for r in rows if q in (r.get("label") or "").lower()
-                                      or q in (r.get("context") or "").lower()
                                       or q in (r.get("category") or "").lower()]
 
-        # Normalise URLs
         out = []
         for r in rows:
-            fp = r.get("file_path") or ""
+            fp  = r.get("file_path") or ""
             url = fp if fp.startswith("https://") else R2_BASE + "/" + fp
             out.append({
-                "url":      url,
-                "title":    r.get("label") or fp,
-                "context":  r.get("context") or "",
-                "category": r.get("category") or "",
+                "url":               url,
+                "file_path":         fp,
+                "label":             r.get("label") or fp,
+                "category":          r.get("category") or "",
+                "short_description": r.get("short_description") or "",
             })
 
         return jsonify(out)
     except Exception as e:
+        print(f"videos_browse error: {e}")
         return jsonify([])
 
 
@@ -1577,24 +1594,69 @@ def drink_packages_route():
 
 @app.route("/api/videos/similar")
 def api_videos_similar():
-    """Return videos in the same category as the given file_path, excluding it."""
+    """Return videos similar to the given file_path.
+    Match priority:
+      1. Overlapping itinerary_group (same sailing circuit)
+      2. Same category (fallback)
+    """
     try:
+        import json as _json
         file_path = request.args.get("file_path", "").strip()
-        limit     = request.args.get("limit", "8")
+        try:
+            limit = min(int(request.args.get("limit") or 8), 20)
+        except ValueError:
+            limit = 8
         if not file_path:
             return jsonify([])
-        source = sb_get("videos", {"file_path": f"eq.{file_path}"})
+
+        source = sb_get("videos", {
+            "file_path": f"eq.{file_path}",
+            "select":    "category,itinerary_group",
+        })
         if not source:
             return jsonify([])
-        category = source[0].get("category", "")
-        if not category:
-            return jsonify([])
-        rows = sb_get("videos", {
-            "category":  f"eq.{category}",
-            "file_path": f"neq.{file_path}",
-            "limit":     limit,
-        })
-        return jsonify(rows or [])
+
+        src       = source[0]
+        category  = src.get("category") or ""
+        ig        = src.get("itinerary_group") or []
+
+        rows = []
+        # Priority 1: itinerary_group overlap (ov. = PostgREST array overlap)
+        if ig:
+            rows = sb_get("videos", {
+                "itinerary_group": f"ov.{_json.dumps(ig)}",
+                "file_path":       f"neq.{file_path}",
+                "active":          "eq.true",
+                "select":          "file_path,label,category,short_description",
+                "limit":           str(limit),
+                "order":           "label.asc",
+            }) or []
+
+        # Fallback: same category
+        if not rows and category:
+            rows = sb_get("videos", {
+                "category":  f"eq.{category}",
+                "file_path": f"neq.{file_path}",
+                "active":    "eq.true",
+                "select":    "file_path,label,category,short_description",
+                "limit":     str(limit),
+                "order":     "label.asc",
+            }) or []
+
+        # Normalise URLs
+        R2 = R2_BASE
+        out = []
+        for r in rows:
+            fp  = r.get("file_path") or ""
+            url = fp if fp.startswith("https://") else R2 + "/" + fp
+            out.append({
+                "url":               url,
+                "file_path":         fp,
+                "label":             r.get("label") or fp,
+                "category":          r.get("category") or "",
+                "short_description": r.get("short_description") or "",
+            })
+        return jsonify(out)
     except Exception as e:
         print(f"api_videos_similar error: {e}")
         return jsonify([])
