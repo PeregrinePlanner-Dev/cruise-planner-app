@@ -604,7 +604,8 @@
           strip.innerHTML = vids.map(function(v) {
             var vurl = v.url || (R2 + "/" + v.file_path);
             var col  = catColor(v.category || "");
-            var rec  = JSON.stringify(v).replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+            var play_rec = { url: vurl, file_path: v.file_path||"", label: v.label||"", category: v.category||"" };
+            var rec  = JSON.stringify(play_rec).replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
             return '<div class="similar-card" data-url="' + vurl + '" onclick=\'playVideo(' + rec + ', true)\'>'
               + '<div class="similar-card-label">' + (v.label||"") + '</div>'
               + '<div class="similar-card-cat" style="color:' + col + '">' + catLabel(v.category||"") + '</div>'
@@ -620,7 +621,10 @@
     var col      = catColor(v.category || "");
     var isPlay   = currentVideo ? url === (currentVideo.url || R2 + "/" + currentVideo.file_path) : false;
     var badge    = queued ? '<span class="card-queued-badge">New</span>' : "";
-    var rec      = JSON.stringify(v).replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    // Only serialize fields playVideo() actually needs — excludes short_description and
+    // any other text that may contain apostrophes, which would break the single-quoted onclick attr.
+    var play_rec = { url: url, file_path: v.file_path||"", label: v.label||v.title||"", category: v.category||"" };
+    var rec      = JSON.stringify(play_rec).replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
     return '<div class="video-card' + (isPlay?" playing":"") + '" data-url="' + url + '" onclick=\'playVideo(' + rec + ', true); isOnContextVid=false;\'>'
       + '<div class="card-play">&#9654;</div>'
       + '<div class="card-body">'
