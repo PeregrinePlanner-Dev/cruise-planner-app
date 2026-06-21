@@ -271,20 +271,20 @@
 
 <script>
   var CAT_CFG = {
-    airport:            { label: "Airport",       color: "#0ea5e9" },
-    cruise_terminal:    { label: "Terminal",      color: "#3b82f6" },
-    destination:        { label: "Destination",   color: "#10b981" },
-    attraction:         { label: "Attraction",    color: "#f59e0b" },
-    castle:             { label: "Castle",        color: "#8b5cf6" },
-    cathedral:          { label: "Cathedral",     color: "#ec4899" },
-    monument:           { label: "Monument",      color: "#6366f1" },
-    museum:             { label: "Museum",        color: "#14b8a6" },
-    nature:             { label: "Nature",        color: "#22c55e" },
-    "pre-cruise-hotel": { label: "Hotel",         color: "#f97316" },
-    resort:             { label: "Resort",        color: "#eab308" },
-    "river-port":       { label: "River Port",    color: "#06b6d4" },
-    "theme-park":       { label: "Theme Park",    color: "#ef4444" },
-    zoo:                { label: "Zoo",           color: "#84cc16" }
+    airport:            { label: "Airports",       color: "#0ea5e9" },
+    cruise_terminal:    { label: "Terminals",      color: "#3b82f6" },
+    destination:        { label: "Destinations",   color: "#10b981" },
+    attraction:         { label: "Attractions",    color: "#f59e0b" },
+    castle:             { label: "Castles",        color: "#8b5cf6" },
+    cathedral:          { label: "Cathedrals",     color: "#ec4899" },
+    monument:           { label: "Monuments",      color: "#6366f1" },
+    museum:             { label: "Museums",        color: "#14b8a6" },
+    nature:             { label: "Nature",         color: "#22c55e" },
+    "pre-cruise-hotel": { label: "Hotels",         color: "#f97316" },
+    resort:             { label: "Resorts",        color: "#eab308" },
+    "river-port":       { label: "River Ports",    color: "#06b6d4" },
+    "theme-park":       { label: "Theme Parks",    color: "#ef4444" },
+    zoo:                { label: "Zoos",           color: "#84cc16" }
   };
 
   var REGIONS = [
@@ -604,7 +604,7 @@
           strip.innerHTML = vids.map(function(v) {
             var vurl = v.url || (R2 + "/" + v.file_path);
             var col  = catColor(v.category || "");
-            var play_rec = { url: vurl, file_path: v.file_path||"", label: v.label||"", category: v.category||"" };
+            var play_rec = { url: vurl, file_path: v.file_path||"", label: v.label||"", category: v.category||"", short_description: v.short_description||"" };
             var rec  = JSON.stringify(play_rec).replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
             return '<div class="similar-card" data-url="' + vurl + '" onclick=\'playVideo(' + rec + ', true)\'>'
               + '<div class="similar-card-label">' + (v.label||"") + '</div>'
@@ -623,7 +623,7 @@
     var badge    = queued ? '<span class="card-queued-badge">New</span>' : "";
     // Only serialize fields playVideo() actually needs — excludes short_description and
     // any other text that may contain apostrophes, which would break the single-quoted onclick attr.
-    var play_rec = { url: url, file_path: v.file_path||"", label: v.label||v.title||"", category: v.category||"" };
+    var play_rec = { url: url, file_path: v.file_path||"", label: v.label||v.title||"", category: v.category||"", short_description: v.short_description||"" };
     var rec      = JSON.stringify(play_rec).replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
     return '<div class="video-card' + (isPlay?" playing":"") + '" data-url="' + url + '" onclick=\'playVideo(' + rec + ', true); isOnContextVid=false;\'>'
       + '<div class="card-play">&#9654;</div>'
