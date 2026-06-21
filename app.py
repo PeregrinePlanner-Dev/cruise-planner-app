@@ -1621,16 +1621,21 @@ def api_videos_similar():
         ig        = src.get("itinerary_group") or []
 
         rows = []
-        # Priority 1: itinerary_group overlap (ov. = PostgREST array overlap)
+        # Priority 1: itinerary_group overlap
+        # itinerary_group is JSONB — use cs. (contains) with first group value.
+        # ov. only works on native pg arrays, not JSONB.
         if ig:
-            rows = sb_get("videos", {
-                "itinerary_group": f"ov.{_json.dumps(ig)}",
-                "file_path":       f"neq.{file_path}",
-                "active":          "eq.true",
-                "select":          "file_path,label,category,short_description",
-                "limit":           str(limit),
-                "order":           "label.asc",
-            }) or []
+            try:
+                rows = sb_get("videos", {
+                    "itinerary_group": f"cs.{_json.dumps([ig[0]])}",
+                    "file_path":       f"neq.{file_path}",
+                    "active":          "eq.true",
+                    "select":          "file_path,label,category,short_description",
+                    "limit":           str(limit),
+                    "order":           "label.asc",
+                }) or []
+            except Exception:
+                rows = []
 
         # Fallback: same category
         if not rows and category:
