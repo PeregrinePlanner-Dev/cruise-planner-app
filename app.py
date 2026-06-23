@@ -29,7 +29,7 @@ RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 ADVISOR_EMAIL  = os.environ.get("ADVISOR_EMAIL", "arrowroot56@gmail.com")
 
 # ── Cloudflare R2 video hosting ───────────────────────────────────────────
-R2_BASE = "https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev"
+R2_BASE = "https://videos.peregrineplanner.com"
 
 SB_HEADERS = {
     "apikey": SUPABASE_KEY,
