@@ -26,7 +26,7 @@ app.secret_key = os.environ.get("FLASK_SECRET", "dev-secret-change-in-production
 SUPABASE_URL   = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY   = os.environ.get("SUPABASE_KEY")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
-ADVISOR_EMAIL  = os.environ.get("ADVISOR_EMAIL", "arrowroot56@gmail.com")
+ADVISOR_EMAIL  = os.environ.get("ADVISOR_EMAIL", "rick@peregrineplanner.com")
 
 # ── Cloudflare R2 video hosting ───────────────────────────────────────────
 R2_BASE = "https://videos.peregrineplanner.com"
@@ -2525,7 +2525,7 @@ def send_handoff_email(session_id, profile, shortlist, eliminated, advisor_alert
                 "Content-Type":  "application/json",
             },
             json={
-                "from":    "Peregrine <onboarding@resend.dev>",
+                "from":    "Adrian at Peregrine <adrian@peregrineplanner.com>",
                 "to":      [ADVISOR_EMAIL],
                 "subject": subject,
                 "html":    html,
@@ -3516,4 +3516,4 @@ def dev_flush_sessions():
 if __name__ == "__main__":
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=debug_mode, host="0.0.0.0", port=port)
+    app.run(debug=debug_mode, host="
