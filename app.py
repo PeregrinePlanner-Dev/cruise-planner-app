@@ -1633,6 +1633,12 @@ def exchange_rates():
         return jsonify({"error": str(e)}), 502
 
 
+@app.route("/legal")
+def legal_page():
+    """Privacy notice and terms of use."""
+    return render_template("legal.html")
+
+
 @app.route("/drinks")
 def drinks_page():
     """Standalone drink package calculator (opens in its own tab)."""
@@ -1900,6 +1906,7 @@ def video_route():
                 "alaska":     ("nature/glacier-bay-alaska.mp4",           "Alaska",                  "your destination"),
                 "pacific":    ("destinations/cairns-qld-australia.mp4",  "South Pacific",           "your destination"),
                 "seattle":    ("destinations/seattle-city-center.mp4",   "Seattle",                 "your destination"),
+                "vancouver": ("cruise-terminals/vancouver.mp4",        "Vancouver, BC",           "your cruise terminal"),
                 # caribbean: no matching video file yet — suppresses rather than showing broken source.
             }
             for kw, (fp, label, ctx) in DEST_MAP.items():
