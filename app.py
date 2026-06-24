@@ -13,7 +13,7 @@ import uuid as uuid_mod
 import anthropic
 import requests
 from datetime import datetime, timezone
-from flask import Flask, jsonify, request, render_template, session, send_from_directory
+from flask import Flask, jsonify, request, render_template, session, send_from_directory, redirect
 from dotenv import load_dotenv
 
 
@@ -1637,6 +1637,52 @@ def exchange_rates():
 def legal_page():
     """Privacy notice and terms of use."""
     return render_template("legal.html")
+
+
+@app.route("/advisor-inquiry", methods=["POST"])
+def advisor_inquiry():
+    """Receive advisor inquiry form, send notification email via Resend."""
+    name    = request.form.get("name", "").strip()
+    agency  = request.form.get("agency", "").strip()
+    email   = request.form.get("email", "").strip()
+    clia    = request.form.get("clia", "").strip()
+    notes   = request.form.get("notes", "").strip()
+
+    if not name or not agency or not email:
+        return "Missing required fields.", 400
+
+    if RESEND_API_KEY:
+        clia_line  = f"<p><strong>CLIA #:</strong> {clia}</p>" if clia else ""
+        notes_line = f"<p><strong>Practice notes:</strong> {notes}</p>" if notes else ""
+        html_body  = f"""
+<h2>New Advisor Inquiry — Peregrine</h2>
+<p><strong>Name:</strong> {name}</p>
+<p><strong>Agency:</strong> {agency}</p>
+<p><strong>Email:</strong> {email}</p>
+{clia_line}
+{notes_line}
+"""
+        try:
+            requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {RESEND_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": "Peregrine <hello@peregrineplanner.com>",
+                    "to": ["hello@peregrineplanner.com"],
+                    "reply_to": email,
+                    "subject": f"Advisor Inquiry: {name} — {agency}",
+                    "html": html_body,
+                },
+                timeout=8,
+            )
+        except Exception as e:
+            print(f"advisor_inquiry email error: {e}")
+
+    # Redirect back to the advisor page with a success flag
+    return redirect("https://peregrineplanner.com/advisors?success=1", code=302)
 
 
 @app.route("/drinks")
