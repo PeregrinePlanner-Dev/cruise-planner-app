@@ -1893,9 +1893,14 @@ def video_route():
                 "mediterr":  ("destinations/santorini-greece.mp4",     "Mediterranean",              "your destination"),
                 "greece":    ("destinations/santorini-greece.mp4",     "Greece",                     "your destination"),
                 "italy":     ("destinations/venice-italy.mp4",         "Italy",                      "your destination"),
-                # alaska, caribbean, europe (general): no matching video file yet \u2014
-                # left out intentionally so the panel suppresses rather than
-                # showing a broken source.
+                "australia":  ("destinations/cairns-qld-australia.mp4",  "Australia",               "your destination"),
+                "queensland": ("destinations/cairns-qld-australia.mp4",  "Queensland",              "your destination"),
+                "sydney":     ("destinations/cairns-qld-australia.mp4",  "Australia",               "your destination"),
+                "zealand":    ("destinations/queenstown-new-zealand.mp4", "New Zealand",             "your destination"),
+                "alaska":     ("nature/glacier-bay-alaska.mp4",           "Alaska",                  "your destination"),
+                "pacific":    ("destinations/cairns-qld-australia.mp4",  "South Pacific",           "your destination"),
+                "seattle":    ("destinations/seattle-city-center.mp4",   "Seattle",                 "your destination"),
+                # caribbean: no matching video file yet — suppresses rather than showing broken source.
             }
             for kw, (fp, label, ctx) in DEST_MAP.items():
                 if kw in destination:
