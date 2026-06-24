@@ -1682,7 +1682,7 @@ def advisor_inquiry():
             print(f"advisor_inquiry email error: {e}")
 
     # Redirect back to the advisor page with a success flag
-    return redirect("https://peregrineplanner.com/advisors?access=1", code=302)
+    return redirect("https://peregrine-landing.pages.dev/advisors?access=1", code=302)
 
 
 @app.route("/drinks")
