@@ -667,7 +667,7 @@
       <div class="chat-messages" id="chat-messages">
         <div class="message bot" id="opening-message">
           <div class="bubble" id="opening-bubble">
-            Hi, I'm Adrian — I'm here to help you plan your perfect cruise. Is this your first session planning a new cruise, or do we have one already started together?
+            Hi, I'm Adrian — I'm here to help you plan your perfect cruise. What shall I call you?
           </div>
           <div class="message-time">Just now</div>
         </div>
@@ -990,7 +990,7 @@
     messagesEl.innerHTML = `
       <div class="message bot" id="opening-message">
         <div class="bubble" id="opening-bubble">
-          Hi, I'm Adrian — I'm here to help you plan your perfect cruise. Is this your first session planning a new cruise, or do we have one already started together?
+          Hi, I'm Adrian — I'm here to help you plan your perfect cruise. What shall I call you?
         </div>
         <div class="message-time">Just now</div>
       </div>
@@ -1086,7 +1086,7 @@
   async function newSession() {
     await fetch("/api/session/new", { method: "POST" });
     document.getElementById("opening-bubble").innerHTML =
-      "Hi, I'm Adrian — I'm here to help you plan your perfect cruise. Is this your first session planning a new cruise, or do we have one already started together?";
+      "Hi, I'm Adrian — I'm here to help you plan your perfect cruise. What shall I call you?";
     refreshProfileCard();
     refreshAlerts();
     refreshIntel();
