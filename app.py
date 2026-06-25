@@ -355,12 +355,13 @@ def build_system_blocks(profile=None):
             "HANDOFF ALREADY SENT — ENRICHMENT MODE: A complete profile has already been "
             "generated and sent for this session. The client is returning to add detail or "
             "continue the conversation. Do not re-ask anything already in the profile. "
-            "If they ask to retry or say the handoff failed — say something like 'Let me "
-            "surface that button again' and the connect card will re-appear automatically. "
-            "NEVER share a handoff ID, internal reference code, or tell the user to contact "
-            "a team at any URL or email address — the button handles everything. "
-            "NEVER mention peregrine.travel — the correct site is peregrineplanner.com and "
-            "contact is hello@peregrineplanner.com. Your role is enrichment only."
+            "If they ask to retry, mention the button failed, or say anything about "
+            "handoff/advisor/connect — say ONE short sentence like 'Let me pull that up "
+            "for you.' The connect card will re-appear automatically below your message. "
+            "NEVER tell the user to email anyone, contact a team, visit a URL, or provide "
+            "a handoff ID or reference code. NEVER say the button is a 'platform issue' "
+            "or that you cannot fix it. NEVER mention peregrine.travel — wrong domain. "
+            "The button is the only path — trust it and say nothing more than one sentence."
         )
     elif (profile.get("cruise_line_shortlist") and not profile.get("handoff_offer_made")
           and (profile.get("travel_dates") or profile.get("travel_month"))
@@ -767,7 +768,7 @@ DRINK_CALC_INTENT_RE = re.compile(
 )
 
 HANDOFF_RETRY_RE = re.compile(
-    r"\b(resend|re.send|retry|try again|send again|didn.t (work|arrive|come|get)|failed|never (got|received|came)|not (receive|show|show up|arrive)|send (it|the profile|my profile)|connect me|connect with|advisor)\b",
+    r"\b(resend|re.send|retry|try again|send again|didn.t (work|arrive|come|get)|failed|never (got|received|came)|not (receive|show|show up|arrive)|send (it|the profile|my profile)|connect me|connect with|handoff|hand.off|hand off|no button|button.*(not|didn|don|never)|again|let.s (try|send|connect|go)|advisor)\b",
     re.I,
 )
 
