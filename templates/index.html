@@ -393,38 +393,20 @@
       font-style: italic;
     }
 
-    /* ── Expand video button (corner overlay) ───────────────────────────── */
-    #expand-video-btn {
-      position: absolute;
-      top: 7px;
-      right: 7px;
-      background: rgba(0,0,0,0.55);
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 5px;
-      color: rgba(255,255,255,0.85);
-      font-size: 10px;
-      font-family: inherit;
+    /* ── Explore Videos button ───────────────────────────────────────────── */
+    #explore-videos-btn {
+      font-size: 11px;
       font-weight: 600;
-      padding: 4px 8px;
+      color: #1d4ed8;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 2px 8px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      opacity: 0.72;
-      transition: opacity 0.2s, background 0.2s;
-      white-space: nowrap;
-      z-index: 10;
-      backdrop-filter: blur(4px);
+      font-family: inherit;
     }
-
-    .video-panel:hover #expand-video-btn {
-      opacity: 1;
-    }
-
-    #expand-video-btn:hover {
-      background: rgba(0,0,0,0.80);
-      border-color: rgba(255,255,255,0.5);
-      color: white;
+    #explore-videos-btn:hover {
+      background: #dbeafe;
     }
 
     /* ── Profile summary card ─────────────────────────────────────────── */
@@ -775,14 +757,6 @@
       <video id="destination-video" muted playsinline controls disableRemotePlayback x-webkit-airplay="deny" controlsList="nodownload nofullscreen">
         <source src="https://pub-04ae0c3f9531493293b7ccda7216ee88.r2.dev/cruise-terminals/port-everglades-terminal-3.mp4" type="video/mp4">
       </video>
-      <button id="expand-video-btn" title="Open video explorer">
-        <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="5,1 1,1 1,15 15,15 15,11"/>
-          <polyline points="9,1 15,1 15,7"/>
-          <line x1="15" y1="1" x2="8" y2="8"/>
-        </svg>
-        Explore
-      </button>
     </div>
     <div class="video-caption">
       <div class="video-caption-title" id="video-caption-title">Port Everglades · Fort Lauderdale</div>
@@ -791,6 +765,9 @@
     <div id="port-card-container" style="display:none; margin-top:8px;">
       <div class="panel-label" style="color:#1d4ed8; margin-bottom:4px;">⚓ Port Info</div>
       <div class="port-card" id="port-card"></div>
+    </div>
+    <div style="margin-top:6px; margin-bottom:2px;">
+      <button id="explore-videos-btn">▶ Explore Videos</button>
     </div>
     <div class="panel-label intel-label" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between;">
       <span>✦ Insider Intel</span>
@@ -1672,7 +1649,7 @@
       `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   }
 
-  document.getElementById("expand-video-btn")
+  document.getElementById("explore-videos-btn")
     ?.addEventListener("click", () => openPanel("/video-viewer","peregrine_video_viewer", Math.min(1600, screen.availWidth - 40), screen.availHeight - 60));
 
 </script>

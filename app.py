@@ -432,6 +432,7 @@ MORE INFERENCE TRAPS -- do not capture these:
 - experience_tier: only assign if the user described the level of cruise they want (mainstream/premium/luxury/expedition).
 - ship_class_preference: only if user named a class or described characteristics mapping to one.
 - cruise_line_shortlist / cruise_line_negative_signals: matching engine outputs only. Leave null.
+- client_excluded_lines: ONLY if the user explicitly said they do NOT want a specific cruise line or type (e.g. "not Disney", "I don't want Carnival", "no mega ships", "we ruled out MSC"). Do NOT populate from algorithm logic, party composition, or anything the user didn't directly state. Array of objects: [{"name": "Line Name", "reason": "what the client said"}]. null if client never excluded a line by name or explicit statement.
 - specific_ship_interest: only if user named a specific ship.
 - theme_cruise_interest: only if user expressed interest in a themed sailing.
 - repositioning_sailing_interest: only if user explicitly mentioned repositioning sailings.
@@ -445,6 +446,7 @@ MORE INFERENCE TRAPS -- do not capture these:
 - specialty_dining_preference: only if user expressed preference for specialty restaurants.
 - future_cruise_deposit_interest: only if user asked about booking a future cruise deposit onboard.
 - departing_from / departure_city: the embarkation/boarding port. NEVER capture a port the ASSISTANT proposed or suggested as an option (e.g. "Galveston is the closest option" or "you could sail from Miami or Fort Lauderdale"). Only capture if the USER explicitly confirmed or chose that port themselves (e.g. "yes let's do Galveston", "Galveston works", "we'll sail from Miami"). Mentioning a home city or a city the user is driving from/through is NOT a departure port confirmation. If the assistant offered choices and the user has not yet picked one, leave this null.
+- home_city / home_airport: ONLY capture if the user explicitly states where they currently live or their home airport (e.g. "we're in Seattle", "I live in Dallas", "we fly out of LAX"). Do NOT infer from departure ports, past cruise embarkation cities, or places mentioned in the context of a previous trip. "We left from Seattle on our last cruise" or "we did an out-and-back from Vancouver" does NOT establish home_city — that is a past embarkation port, not a residence. Leave null unless the user clearly states where they live.
 - travel_mode: NEVER infer from the assistant's suggestions or from a home city/region alone. "We're in Austin" or "we live near Houston" is NOT a travel_mode confirmation — it only tells you where they live. Only capture if the USER explicitly stated how they're getting to the ship (e.g. "we'll drive down", "we're flying in", "we'll probably fly"). If the assistant proposed driving/flying as an option (e.g. "since you're close, you could drive to Galveston") and the user did not explicitly confirm that mode, leave travel_mode null.
 
 NORMALIZATION RULES:
@@ -633,6 +635,7 @@ HANDOFF INTENT SLOTS — capture from user statements only, never from bot messa
   "ship_class_preference": null,
   "cruise_line_shortlist": null,
   "cruise_line_negative_signals": null,
+  "client_excluded_lines": null,
   "specific_ship_interest": null,
   "theme_cruise_interest": null,
   "repositioning_sailing_interest": null,
@@ -2527,8 +2530,10 @@ def _map_profile_to_email_ctx(session_id, profile, shortlist, eliminated, adviso
                 _disc_seen.add(_key)
                 _disc_lines.append(str(_ln).strip())
 
-    shortlist_rows, shortlist_fired = _shortlist_html(shortlist, discussed_lines=_disc_lines or None)
-    # If client discussed lines, always show the shortlist section even if algo produced nothing
+    # If client discussed lines, only show algo lines as supplementary (max 2, labeled differently)
+    # When client has stated preferences, suppress algo lines entirely — they contradict the portrait
+    _algo_for_shortlist = [] if _disc_lines else shortlist
+    shortlist_rows, shortlist_fired = _shortlist_html(_algo_for_shortlist, discussed_lines=_disc_lines or None)
     if _disc_lines and not shortlist_fired:
         shortlist_rows, shortlist_fired = _shortlist_html([], discussed_lines=_disc_lines)
 
@@ -2551,21 +2556,19 @@ def _map_profile_to_email_ctx(session_id, profile, shortlist, eliminated, adviso
     else:
         opener = ""
 
-    negatives  = profile.get("cruise_line_negative_signals") or []
-    # Filter out self-evident river/inland eliminations — advisors know these aren't ocean lines.
-    # Only show meaningful eliminations (budget, family, destination-specific, client-stated).
-    _river_noise = {"river hull", "river cruise line", "river_inland", "inland waterway"}
-    def _is_noise_elim(n):
-        reason = (n.get("reason") or "").lower() if isinstance(n, dict) else str(n).lower()
-        return any(r in reason for r in _river_noise)
+    # "Already Ruled Out" should ONLY show lines the client explicitly said they don't want.
+    # cruise_line_negative_signals is matching engine output (algorithm scoring), never client statements.
+    # client_excluded_lines is the slot for genuine client exclusions (e.g. "not Disney", "no mega ships").
+    client_exclusions = profile.get("client_excluded_lines") or []
+    if isinstance(client_exclusions, str):
+        client_exclusions = [client_exclusions]
     def _ruled_item(n):
         if isinstance(n, dict):
             name_str   = n.get("name") or n.get("slug") or str(n)
             reason_str = n.get("reason") or ""
             return f"<li><strong>{name_str}</strong>{' — ' + reason_str if reason_str else ''}</li>"
         return f"<li>{n}</li>"
-    meaningful_negatives = [n for n in negatives if not _is_noise_elim(n)]
-    ruled_html = "".join(_ruled_item(n) for n in meaningful_negatives) if meaningful_negatives else ""
+    ruled_html = "".join(_ruled_item(n) for n in client_exclusions) if client_exclusions else ""
 
     prefs = list(profile.get("must_haves") or profile.get("onboard_priorities") or [])
     if isinstance(prefs, str):
@@ -2590,8 +2593,16 @@ def _map_profile_to_email_ctx(session_id, profile, shortlist, eliminated, adviso
         if excursion_priority:
             prefs.append(f"Priority excursion: {excursion_priority}")
     excursion_style = profile.get("excursion_style")
-    if excursion_style and excursion_style not in ("not_discussed", ""):
-        prefs.append(f"Excursion style: {excursion_style.replace('_', ' ').title()}")
+    _excursion_style_labels = {
+        "ship_booked":       "Ship-booked excursions preferred",
+        "independent":       "Independent / self-booked excursions",
+        "private_tours":     "Private tours preferred",
+        "mix":               "Mix of ship and independent",
+        "not_discussed":     None,
+    }
+    _exc_label = _excursion_style_labels.get(excursion_style or "", excursion_style.replace("_", " ").title() if excursion_style else None)
+    if _exc_label:
+        prefs.append(f"Excursion style: {_exc_label}")
     post_plan = profile.get("post_cruise_plan")
     if post_plan and post_plan not in ("not_discussed", ""):
         prefs.append(f"Post-cruise: {post_plan}")
