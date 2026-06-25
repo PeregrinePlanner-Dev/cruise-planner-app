@@ -1681,6 +1681,31 @@ def advisor_inquiry():
         except Exception as e:
             print(f"advisor_inquiry email error: {e}")
 
+        # Auto-reply to the advisor
+        try:
+            requests.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {RESEND_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": "Peregrine <hello@peregrineplanner.com>",
+                    "to": [email],
+                    "subject": "We received your Peregrine inquiry",
+                    "html": f"""
+<p>Hi {name},</p>
+<p>Thanks for reaching out about Peregrine. We received your inquiry and will be in touch within one business day.</p>
+<p>Peregrine is currently in active development. We're looking forward to showing you how it works.</p>
+<p>— The Peregrine Team<br>
+<a href="https://peregrineplanner.com">peregrineplanner.com</a></p>
+""",
+                },
+                timeout=8,
+            )
+        except Exception as e:
+            print(f"advisor_inquiry auto-reply error: {e}")
+
     # Redirect back to the advisor page with a success flag
     return redirect("https://peregrineplanner.com/advisors?access=1", code=302)
 
