@@ -1671,7 +1671,7 @@ def advisor_inquiry():
                 },
                 json={
                     "from": "Peregrine <hello@peregrineplanner.com>",
-                    "to": ["hello@peregrineplanner.com"],
+                    "to": ["arrowroot56@gmail.com"],
                     "reply_to": email,
                     "subject": f"Advisor Inquiry: {name} — {agency}",
                     "html": html_body,
