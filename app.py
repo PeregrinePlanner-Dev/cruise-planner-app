@@ -2598,7 +2598,7 @@ def send_handoff_email(session_id, profile, shortlist, eliminated, advisor_alert
         print("send_handoff_email: RESEND_API_KEY not set — skipping.")
         return False
 
-    template_path = os.path.join(os.path.dirname(__file__), "..", "Handoff_Email_Template.html")
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "Handoff_Email_Template.html")
     try:
         with open(template_path, "r", encoding="utf-8") as f:
             template_str = f.read()
@@ -3040,11 +3040,16 @@ def render_client_page(rec):
     # Lines we're considering — only show lines the client explicitly mentioned
     # (lines_sailed or preferred_lines), never the algorithm's output.
     discussed_lines = []
+    seen_lines = set()
     for slot in ("preferred_lines", "lines_sailed"):
         val = profile.get(slot) or []
         if isinstance(val, str):
             val = [val]
-        discussed_lines.extend(val)
+        for line in val:
+            key = str(line).lower().strip()
+            if key and key not in seen_lines:
+                seen_lines.add(key)
+                discussed_lines.append(line)
     if discussed_lines:
         extra_rows.append(("Lines we're considering", ", ".join(discussed_lines[:3])))
     if profile.get("experience_tier"):
