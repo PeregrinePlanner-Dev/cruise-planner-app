@@ -23,12 +23,37 @@
       padding: 48px 56px;
     }
     .logo {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: .06em;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 32px;
+      text-decoration: none;
+    }
+    .logo img {
+      height: 72px;
+      width: auto;
+      display: block;
+    }
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .logo-name {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: .04em;
       text-transform: uppercase;
       color: #1a3d6e;
-      margin-bottom: 32px;
+      line-height: 1;
+    }
+    .logo-sub {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #718096;
+      line-height: 1;
     }
     h1 {
       font-size: 26px;
@@ -70,7 +95,7 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="logo">Peregrine Travel Planner</div>
+    <a href="https://peregrineplanner.com" class="logo"><img src="/static/images/peregrine-logo.png" alt="Peregrine" /><span class="logo-text"><span class="logo-name">Peregrine</span><span class="logo-sub">Travel Planner</span></span></a>
 
     <h1>Legal &amp; Privacy</h1>
     <p class="updated">Effective: June 2026 &nbsp;·&nbsp; Path A pilot</p>
