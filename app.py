@@ -2226,31 +2226,70 @@ def build_advisor_action_line(profile, shortlist):
 
 def generate_portrait_llm(profile, shortlist, eliminated, advisor_alerts):
     budget  = derive_budget_range(profile, shortlist)
-    sl_text = ", ".join(f"{r['name']} (score {r['score']})" for r in shortlist[:3]) or "None yet"
-    ex_text = ", ".join(f"{r['name']} \u2014 {r['reason']}" for r in eliminated[:5]) or "None"
-    al_text = "\n".join(advisor_alerts[:4]) or "None"
-    context = f"""CLIENT: {profile.get('first_name','')} {profile.get('last_name','')}
-Party: {profile.get('party_composition','Unknown')} ({profile.get('party_size','?')} people)
-Destination: {profile.get('destination_region','Not specified')}
-Timing: {profile.get('travel_dates') or profile.get('travel_month','')} {profile.get('travel_year','')}
-Duration: {profile.get('duration_preference','Not specified')}
-Budget: {budget['per_person']} pp / {budget['total']} total \u2014 {budget['basis']}
-Top matches: {sl_text}
-Eliminated: {ex_text}
-Emotional driver: {profile.get('emotional_driver','Not captured')}
-Trip occasion: {profile.get('trip_occasion','None')}
-Trip motivation: {profile.get('trip_motivation','Not captured')}
-Prior experience: {profile.get('cruise_experience','Unknown')} | Lines sailed: {profile.get('lines_sailed','None')}
-Line feedback: {profile.get('line_feedback','None')}
-Formality: {profile.get('formality_preference','Not stated')}
-What they fear: {profile.get('what_they_fear_wont_work','Not captured')}
+    al_text = "\n".join(advisor_alerts[:6]) or "None"
+
+    def _val(key, fallback="Not captured"):
+        v = profile.get(key)
+        if v is None or v == "" or v == [] or v == {}:
+            return fallback
+        if isinstance(v, list):
+            return ", ".join(str(x) for x in v if x)
+        return str(v)
+
+    # Lines the client actually discussed \u2014 primary signal for the portrait
+    lines_discussed = []
+    for slot in ("preferred_lines", "lines_sailed"):
+        val = profile.get(slot) or []
+        if isinstance(val, str): val = [val]
+        for line in val:
+            if str(line).strip() and str(line).strip() not in lines_discussed:
+                lines_discussed.append(str(line).strip())
+    lines_discussed_text = ", ".join(lines_discussed) if lines_discussed else "Not stated"
+
+    # Algorithm shortlist \u2014 secondary, clearly labeled as system output
+    sl_text = ", ".join(f"{r['name']} (score {r['score']})" for r in shortlist[:3]) or "None"
+
+    context = f"""CLIENT: {profile.get('first_name', '')} {profile.get('last_name', '')}
+Party: {_val('party_composition')} ({_val('party_size', '?')} people)
+Destination: {_val('destination_region')}
+Destination specifics: {_val('destination_specific')}
+Itinerary shape: {_val('itinerary_type')} | Departing from: {_val('departing_from')} | Post-cruise plan: {_val('post_cruise_plan')}
+Timing: {_val('travel_dates', '') or _val('travel_month', '')} {_val('travel_year', '')} | Date flexibility: {_val('date_flexibility')}
+Duration: {_val('duration_preference')}
+Budget: {budget['per_person']} pp / {budget['total']} total \u2014 {budget['basis']} | Budget flexibility: {_val('budget_flexibility')}
+
+LINES CLIENT DISCUSSED (honor these): {lines_discussed_text}
+Specific ship interest: {_val('specific_ship_interest')}
+Loyalty / past guest status: {_val('loyalty_status')} {_val('loyalty_program')}
+Cabin preference: {_val('cabin_preference')} | Experience tier: {_val('experience_tier')}
+Line feedback from prior sailings: {_val('line_feedback')}
+
+Emotional driver: {_val('emotional_driver')}
+Trip occasion: {_val('trip_occasion')}
+Trip motivation: {_val('trip_motivation')}
+Trip significance: {_val('trip_significance')}
+Dream image (their words): {_val('dream_image')}
+What they fear won't work: {_val('what_they_fear_wont_work')}
+What would make it perfect: {_val('what_would_make_it_perfect')}
+
+Prior cruise experience: {_val('cruise_experience')}
+Atmosphere preference: {_val('atmosphere_preference')}
+Formality preference: {_val('formality_preference')}
+Excursion style: {_val('excursion_style')}
+Priority excursions: {_val('priority_excursions')}
+Onboard priorities: {_val('onboard_priorities')}
+Dining: {_val('dining_relationship')}
+
+ALGORITHM SHORTLIST (for reference only \u2014 do not treat as client preference):
+{sl_text}
+
 Advisor alerts: {al_text}"""
 
-    system = """You are writing intake notes for a travel advisor about a cruise client. Tone: experienced advisor summarizing a thorough discovery call. Professional, specific, honest. Write for advisors, not clients. Treat exclusions as important as positive signals. No bullet points. No cruise brochure language. Prose paragraphs only.
+    system = """You are writing intake notes for a travel advisor about a cruise client. Tone: experienced advisor summarizing a thorough discovery call. Professional, specific, honest. Write for advisors, not clients. No bullet points. No cruise brochure language. Prose paragraphs only.
 
 Paragraph 1: Who is this traveler and what kind of decision-maker they are.
-Paragraph 2: What they are seeking in this cruise specifically.
-Paragraph 3: What NOT to pitch \u2014 explicit exclusions and strong negatives.
+Paragraph 2: What they are seeking in this cruise specifically \u2014 including any lines, ships, or products they explicitly discussed or expressed interest in. If a line appears in "Lines sailed" or was mentioned positively, name it and honor it. Never steer the advisor away from a line the client explicitly discussed.
+Paragraph 3: What NOT to pitch \u2014 only genuine client exclusions and negatives they actually stated. Do not invent exclusions based on the algorithm shortlist. Do not tell the advisor to avoid a line the client spoke about positively.
 Paragraph 4 (only if warranted): Flags and gaps the advisor should probe.
 
 200\u2013350 words total. No headers. Prose only."""
@@ -2470,13 +2509,20 @@ def _map_profile_to_email_ctx(session_id, profile, shortlist, eliminated, adviso
         opener = ""
 
     negatives  = profile.get("cruise_line_negative_signals") or []
+    # Filter out self-evident river/inland eliminations — advisors know these aren't ocean lines.
+    # Only show meaningful eliminations (budget, family, destination-specific, client-stated).
+    _river_noise = {"river hull", "river cruise line", "river_inland", "inland waterway"}
+    def _is_noise_elim(n):
+        reason = (n.get("reason") or "").lower() if isinstance(n, dict) else str(n).lower()
+        return any(r in reason for r in _river_noise)
     def _ruled_item(n):
         if isinstance(n, dict):
             name_str   = n.get("name") or n.get("slug") or str(n)
             reason_str = n.get("reason") or ""
             return f"<li><strong>{name_str}</strong>{' — ' + reason_str if reason_str else ''}</li>"
         return f"<li>{n}</li>"
-    ruled_html = "".join(_ruled_item(n) for n in negatives) if negatives else ""
+    meaningful_negatives = [n for n in negatives if not _is_noise_elim(n)]
+    ruled_html = "".join(_ruled_item(n) for n in meaningful_negatives) if meaningful_negatives else ""
 
     prefs = profile.get("must_haves") or profile.get("onboard_priorities") or []
     if isinstance(prefs, str):
