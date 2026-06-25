@@ -2416,22 +2416,48 @@ def _status_display(val):
     color = _STATUS_COLORS.get(val, "#555555")
     return label, color
 
-def _shortlist_html(shortlist):
-    if not shortlist:
-        return "", False
+def _shortlist_html(shortlist, discussed_lines=None):
     rows = []
-    for r in shortlist[:3]:
-        name    = r.get("name", "—")
-        score   = r.get("score", "—")
-        reasons = r.get("reasons", [])
-        why     = "; ".join(reasons[:2]) if reasons else r.get("why", "—")
-        rows.append(
-            f'<tr style="border-bottom:1px solid #e8eef4;">'
-            f'<td style="font-family:Arial,sans-serif;font-size:14px;font-weight:bold;color:#1B3A5C;padding:8px 8px 8px 0;vertical-align:top;">{name}</td>'
-            f'<td style="font-family:Arial,sans-serif;font-size:13px;color:#2E6DA4;font-weight:bold;padding:8px;vertical-align:top;text-align:center;">{score}</td>'
-            f'<td style="font-family:Arial,sans-serif;font-size:13px;color:#555555;line-height:1.5;padding:8px 0;vertical-align:top;">{why}</td>'
-            f'</tr>'
-        )
+
+    # Prepend client's explicitly discussed/preferred lines with a "Stated preference" badge.
+    # These always appear at the top regardless of algorithm score.
+    if discussed_lines:
+        for line_name in discussed_lines[:3]:
+            rows.append(
+                f'<tr style="border-bottom:1px solid #e8eef4;background-color:#f0f6ff;">'
+                f'<td style="font-family:Arial,sans-serif;font-size:14px;font-weight:bold;color:#1B3A5C;padding:8px 8px 8px 0;vertical-align:top;">'
+                f'{line_name} <span style="font-size:10px;font-weight:normal;color:#2E6DA4;background:#dceeff;padding:2px 6px;border-radius:3px;margin-left:4px;">CLIENT STATED</span>'
+                f'</td>'
+                f'<td style="font-family:Arial,sans-serif;font-size:13px;color:#2E6DA4;font-weight:bold;padding:8px;vertical-align:top;text-align:center;">★</td>'
+                f'<td style="font-family:Arial,sans-serif;font-size:13px;color:#555555;line-height:1.5;padding:8px 0;vertical-align:top;">Explicitly discussed by client — honor this preference</td>'
+                f'</tr>'
+            )
+
+    if shortlist:
+        # Build a set of discussed line names (lowercase) to avoid duplicating them below
+        discussed_lower = {str(d).lower() for d in (discussed_lines or [])}
+        algo_rows_added = 0
+        for r in shortlist:
+            if algo_rows_added >= 3:
+                break
+            name    = r.get("name", "—")
+            # Skip algorithm entries that duplicate a client-stated line
+            if name.lower() in discussed_lower:
+                continue
+            score   = r.get("score", "—")
+            reasons = r.get("reasons", [])
+            why     = "; ".join(reasons[:2]) if reasons else r.get("why", "—")
+            rows.append(
+                f'<tr style="border-bottom:1px solid #e8eef4;">'
+                f'<td style="font-family:Arial,sans-serif;font-size:14px;font-weight:bold;color:#1B3A5C;padding:8px 8px 8px 0;vertical-align:top;">{name}</td>'
+                f'<td style="font-family:Arial,sans-serif;font-size:13px;color:#2E6DA4;font-weight:bold;padding:8px;vertical-align:top;text-align:center;">{score}</td>'
+                f'<td style="font-family:Arial,sans-serif;font-size:13px;color:#555555;line-height:1.5;padding:8px 0;vertical-align:top;">{why}</td>'
+                f'</tr>'
+            )
+            algo_rows_added += 1
+
+    if not rows:
+        return "", False
     return "".join(rows), True
 
 def _alert_html(profile, advisor_alerts=None):
@@ -2488,7 +2514,23 @@ def _map_profile_to_email_ctx(session_id, profile, shortlist, eliminated, adviso
     year   = str(profile.get("travel_year") or "")
     window = dates or " ".join(filter(None, [month, year])) or "Not specified"
 
-    shortlist_rows, shortlist_fired = _shortlist_html(shortlist)
+    # Build list of lines the client actually discussed (preferred_lines + lines_sailed), deduplicated
+    _disc_lines = []
+    _disc_seen  = set()
+    for _slot in ("preferred_lines", "lines_sailed"):
+        _val = profile.get(_slot) or []
+        if isinstance(_val, str):
+            _val = [_val]
+        for _ln in _val:
+            _key = str(_ln).strip().lower()
+            if _key and _key not in _disc_seen:
+                _disc_seen.add(_key)
+                _disc_lines.append(str(_ln).strip())
+
+    shortlist_rows, shortlist_fired = _shortlist_html(shortlist, discussed_lines=_disc_lines or None)
+    # If client discussed lines, always show the shortlist section even if algo produced nothing
+    if _disc_lines and not shortlist_fired:
+        shortlist_rows, shortlist_fired = _shortlist_html([], discussed_lines=_disc_lines)
 
     raw_driver = profile.get("emotional_driver") or profile.get("trip_occasion") or ""
     if isinstance(raw_driver, list):
@@ -2525,14 +2567,45 @@ def _map_profile_to_email_ctx(session_id, profile, shortlist, eliminated, adviso
     meaningful_negatives = [n for n in negatives if not _is_noise_elim(n)]
     ruled_html = "".join(_ruled_item(n) for n in meaningful_negatives) if meaningful_negatives else ""
 
-    prefs = profile.get("must_haves") or profile.get("onboard_priorities") or []
+    prefs = list(profile.get("must_haves") or profile.get("onboard_priorities") or [])
     if isinstance(prefs, str):
         prefs = [prefs]
+
+    # Pull key details from specific slots when must_haves/onboard_priorities are empty
+    ship_interest = profile.get("specific_ship_interest")
+    if ship_interest:
+        prefs.append(f"Ship preference: {ship_interest}")
+    cabin_pref = profile.get("cabin_preference")
+    if cabin_pref and cabin_pref not in ("not_discussed", ""):
+        cabin_label = {
+            "interior": "Interior", "ocean_view": "Ocean View", "balcony": "Balcony",
+            "veranda": "Veranda / Balcony", "mini_suite": "Mini-Suite",
+            "suite": "Suite", "luxury_suite": "Luxury Suite",
+        }.get(cabin_pref, cabin_pref.replace("_", " ").title())
+        prefs.append(f"Cabin: {cabin_label}")
+    excursion_priority = profile.get("priority_excursions")
+    if excursion_priority:
+        if isinstance(excursion_priority, list):
+            excursion_priority = ", ".join(str(x) for x in excursion_priority if x)
+        if excursion_priority:
+            prefs.append(f"Priority excursion: {excursion_priority}")
+    excursion_style = profile.get("excursion_style")
+    if excursion_style and excursion_style not in ("not_discussed", ""):
+        prefs.append(f"Excursion style: {excursion_style.replace('_', ' ').title()}")
+    post_plan = profile.get("post_cruise_plan")
+    if post_plan and post_plan not in ("not_discussed", ""):
+        prefs.append(f"Post-cruise: {post_plan}")
+    loyalty = profile.get("loyalty_status") or profile.get("loyalty_program")
+    if loyalty and loyalty not in ("none", "not_discussed", ""):
+        prefs.append(f"Loyalty / past guest: {loyalty}")
+    atm = profile.get("atmosphere_preference")
+    if atm and atm not in ("not_discussed", ""):
+        prefs.append(f"Atmosphere: {atm.replace('_', ' ').title()}")
     if profile.get("dining_relationship") == "centerpiece":
         prefs.append("Dining as centerpiece — specialty restaurants matter")
     if profile.get("formality_preference") in ("casual_throughout", "smart_casual"):
         prefs.append(f"No formal nights — {profile['formality_preference'].replace('_',' ')}")
-    prefs_html = "".join(f"<li>{p}</li>" for p in prefs[:6]) if prefs else "<li>Not yet collected</li>"
+    prefs_html = "".join(f"<li>{p}</li>" for p in prefs[:8]) if prefs else "<li>Not yet collected</li>"
 
     home_city = profile.get("home_city") or profile.get("home_airport") or ""
     emb_port  = profile.get("embarkation_port") or ""
@@ -3477,233 +3550,4 @@ def lookup_session_by_email():
 def select_session():
     """Restore a specific session after a multi-match email lookup."""
     data = request.get_json() or {}
-    session_id = (data.get("session_id") or "").strip()
-    if not session_id:
-        return jsonify({"error": "session_id required"}), 400
-
-    rows = sb_get("planning_sessions", {"id": f"eq.{session_id}", "select": "id"})
-    if not rows:
-        return jsonify({"status": "not_found"}), 404
-
-    _restore_session(session_id)
-    return jsonify({"status": "matched"})
-
-
-@app.route("/api/chat", methods=["POST"])
-def chat():
-    data = request.get_json() or {}
-    user_message = data.get("message", "").strip()
-    if not user_message:
-        return jsonify({"response": ""}), 400
-
-    session_id, history, is_new = get_or_create_session()
-
-    # Returning-user email lookup: if the user's message is just an email
-    # address and this session doesn't already have a profile started,
-    # treat it as the "what's your email" answer from the RETURNING USER
-    # flow and try to locate their saved record.
-    returning_user_note = None
-    stripped_msg = user_message.strip()
-    if EMAIL_RE.match(stripped_msg):
-        existing_profile = get_profile(session_id)
-        looks_unstarted = not existing_profile.get("destination_region") and not existing_profile.get("first_name")
-        if looks_unstarted:
-            matches = find_sessions_by_email(stripped_msg.lower())
-            if len(matches) == 1:
-                session_id = matches[0]["session_id"]
-                history = _restore_session(session_id)
-                returning_user_note = (
-                    "\n\n[SYSTEM NOTE: This returning user's saved record was found "
-                    f"and restored — their saved trip: {matches[0]['summary']}. "
-                    "Welcome them back warmly and continue the conversation naturally, "
-                    "referencing what you already know about their trip rather than "
-                    "starting over.]"
-                )
-            elif len(matches) > 1:
-                session["pending_email_matches"] = matches
-                options = "\n".join(f"- {m['summary']}" for m in matches)
-                returning_user_note = (
-                    "\n\n[SYSTEM NOTE: This email matches multiple saved trips:\n"
-                    f"{options}\n"
-                    "Ask the user which trip they'd like to continue, describing each "
-                    "option so they can recognize it.]"
-                )
-            else:
-                returning_user_note = (
-                    "\n\n[SYSTEM NOTE: No saved record was found for this email. "
-                    "Let the user know gently and offer to continue planning fresh "
-                    "from here.]"
-                )
-    elif session.get("pending_email_matches"):
-        # User is responding to "which trip is yours?" — try to match their
-        # reply against the pending candidates by destination/occasion text.
-        pending = session["pending_email_matches"]
-        lower_msg = stripped_msg.lower()
-        candidates = [
-            m for m in pending
-            if (m.get("destination_region") and m["destination_region"].lower() in lower_msg)
-            or (m.get("trip_occasion") and m["trip_occasion"].replace("_", " ").lower() in lower_msg)
-        ]
-        if len(candidates) == 1:
-            session_id = candidates[0]["session_id"]
-            history = _restore_session(session_id)
-            returning_user_note = (
-                "\n\n[SYSTEM NOTE: The user picked their saved trip "
-                f"({candidates[0]['summary']}) — it has been restored. Welcome "
-                "them back warmly and continue the conversation naturally.]"
-            )
-
-    history.append({"role": "user", "content": user_message})
-
-    # Email collection logic
-    turn_count = len([m for m in history if m["role"] == "user"])
-    profile = get_profile(session_id)
-    email_collected = bool(profile.get("email"))
-    email_declined = session.get("email_declined", False)
-    inject_email_ask = (
-        turn_count >= EMAIL_PROMPT_TURN
-        and not email_collected
-        and not email_declined
-        and not session.get("email_asked")
-    )
-
-    lower_msg = user_message.lower()
-    if any(p in lower_msg for p in ["no email", "skip", "rather not", "continue without",
-                                     "keep going", "no thanks", "no thank", "anonymous"]):
-        session["email_declined"] = True
-
-    try:
-        api_messages = history
-        if returning_user_note:
-            api_messages = history[:-1] + [{
-                "role": "user",
-                "content": user_message + returning_user_note,
-            }]
-
-        resp = claude.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1500,
-            system=build_system_blocks(profile),
-            messages=api_messages,
-            stop_sequences=["\nUSER:", "\nUser:", "\nuser:", "\nASSISTANT:", "\nAssistant:"],
-        )
-        bot_reply = resp.content[0].text.strip()
-
-        # Guard against the model occasionally writing out a fake multi-turn
-        # continuation (e.g. "...question?\n\nUSER: We are a couple\nASSISTANT:
-        # Perfect!..."), which previously got stored verbatim in history and
-        # corrupted both the displayed reply and downstream slot extraction.
-        # stop_sequences above should catch this going forward; this is a
-        # belt-and-suspenders truncation for any other label variant.
-        fabricated_turn = re.search(r"\n\s*(USER|User|user|ASSISTANT|Assistant)\s*:", bot_reply)
-        if fabricated_turn:
-            print(f"WARNING: truncated fabricated multi-turn continuation: {bot_reply[fabricated_turn.start():][:200]!r}")
-            bot_reply = bot_reply[:fabricated_turn.start()].strip()
-    except Exception as e:
-        print(f"Chat API error: {e}")
-        return jsonify({"response": "I\u2019m having trouble connecting right now \u2014 please try again in a moment."}), 500
-
-    if inject_email_ask:
-        bot_reply = bot_reply + "\n\n" + EMAIL_COLLECTION_TEXT
-        session["email_asked"] = True
-
-    history.append({"role": "assistant", "content": bot_reply})
-    save_conversation_history(session_id, history)
-
-    # Run slot extraction / narrative / matching in the background so the user
-    # gets Adrian's reply immediately instead of waiting on extra Haiku/Sonnet
-    # calls. The profile, narrative, and intel panels pick up the results on
-    # their next refresh.
-    def _run_extraction(sid, hist):
-        try:
-            extract_and_save_slots(sid, hist)
-        except Exception as e:
-            print(f"Extraction dispatch error: {e}")
-
-    threading.Thread(target=_run_extraction, args=(session_id, list(history)), daemon=True).start()
-
-    # Check for handoff intent captured during slot extraction
-    try:
-        fresh_profile   = get_profile(session_id)
-        handoff_intent  = fresh_profile.get("handoff_intent") if not fresh_profile.get("handoff_generated") else None
-        advisor_name    = fresh_profile.get("advisor_name")
-    except Exception:
-        fresh_profile   = {}
-        handoff_intent  = None
-        advisor_name    = None
-
-    # Allow explicit retry even after handoff_generated — user asking to resend
-    # bypasses the gate so the connect button can re-appear.
-    if handoff_intent is None and HANDOFF_RETRY_RE.search(user_message):
-        handoff_intent = "connect_peregrine"
-
-    # The drink-calculator handoff is self-contained (it just opens /drinks
-    # in a new tab) and doesn't need profile data, so detect it directly from
-    # THIS message instead of relying solely on the background slot
-    # extraction -- that extraction runs after the response is already being
-    # built, so its result wouldn't show up until the NEXT reply, making the
-    # button appear to never fire.
-    if handoff_intent != "drink_calculator" and DRINK_CALC_INTENT_RE.search(user_message):
-        handoff_intent = "drink_calculator"
-
-    if handoff_intent:
-        # Clear handoff_intent from profile immediately after serving it so the
-        # card doesn't reappear on every subsequent turn. The drink_calculator
-        # card is self-contained; the save/connect cards need one-shot display.
-        # If the user re-signals intent later, slot extraction will set it again.
-        try:
-            profile_upd = {**fresh_profile, "handoff_intent": None}
-            sb_patch("voyage_profiles", {"session_id": f"eq.{session_id}"},
-                     {"profile": profile_upd, "updated_at": now_iso()})
-        except Exception as e:
-            print(f"Failed to clear handoff_intent after serving: {e}")
-
-    return jsonify({"response": bot_reply, "handoff_action": handoff_intent, "advisor_name": advisor_name})
-
-
-@app.route("/api/chat/reset", methods=["POST"])
-def chat_reset():
-    """Start a brand-new planning session.
-
-    IMPORTANT: this must NOT wipe the current session_id's row in place.
-    If the current session_id is a restored returning-user session (e.g.
-    after an email lookup), wiping it in place would destroy that user's
-    saved profile and history. Instead, just drop the session_id from the
-    cookie -- get_or_create_session() will create a fresh row on the next
-    /api/chat call, and the old saved session is left untouched.
-    """
-    session.pop("session_id", None)
-    session.pop("email_asked", None)
-    session.pop("email_declined", None)
-    session.pop("pending_email_matches", None)
-    return jsonify({"ok": True})
-
-
-@app.route("/dev/flush-sessions", methods=["POST"])
-def dev_flush_sessions():
-    dev_key = os.environ.get("DEV_FLUSH_KEY", "")
-    if not dev_key or request.headers.get("X-Dev-Key") != dev_key:
-        return jsonify({"error": "Unauthorized"}), 403
-    try:
-        resp = requests.delete(
-            f"{SUPABASE_URL}/rest/v1/voyage_profiles",
-            headers={
-                "apikey": SUPABASE_KEY,
-                "Authorization": f"Bearer {SUPABASE_KEY}",
-                "Content-Type": "application/json",
-            },
-            params={"session_id": "neq.___never___"},
-            timeout=10,
-        )
-        if resp.ok:
-
-            return jsonify({"deleted": True, "status": resp.status_code})
-        return jsonify({"error": resp.text}), 500
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-if __name__ == "__main__":
-    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=debug_mode, host="0.0.0.0", port=port)
+    s
