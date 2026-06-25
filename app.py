@@ -3550,4 +3550,233 @@ def lookup_session_by_email():
 def select_session():
     """Restore a specific session after a multi-match email lookup."""
     data = request.get_json() or {}
-    s
+    session_id = (data.get("session_id") or "").strip()
+    if not session_id:
+        return jsonify({"error": "session_id required"}), 400
+
+    rows = sb_get("planning_sessions", {"id": f"eq.{session_id}", "select": "id"})
+    if not rows:
+        return jsonify({"status": "not_found"}), 404
+
+    _restore_session(session_id)
+    return jsonify({"status": "matched"})
+
+
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    data = request.get_json() or {}
+    user_message = data.get("message", "").strip()
+    if not user_message:
+        return jsonify({"response": ""}), 400
+
+    session_id, history, is_new = get_or_create_session()
+
+    # Returning-user email lookup: if the user's message is just an email
+    # address and this session doesn't already have a profile started,
+    # treat it as the "what's your email" answer from the RETURNING USER
+    # flow and try to locate their saved record.
+    returning_user_note = None
+    stripped_msg = user_message.strip()
+    if EMAIL_RE.match(stripped_msg):
+        existing_profile = get_profile(session_id)
+        looks_unstarted = not existing_profile.get("destination_region") and not existing_profile.get("first_name")
+        if looks_unstarted:
+            matches = find_sessions_by_email(stripped_msg.lower())
+            if len(matches) == 1:
+                session_id = matches[0]["session_id"]
+                history = _restore_session(session_id)
+                returning_user_note = (
+                    "\n\n[SYSTEM NOTE: This returning user's saved record was found "
+                    f"and restored — their saved trip: {matches[0]['summary']}. "
+                    "Welcome them back warmly and continue the conversation naturally, "
+                    "referencing what you already know about their trip rather than "
+                    "starting over.]"
+                )
+            elif len(matches) > 1:
+                session["pending_email_matches"] = matches
+                options = "\n".join(f"- {m['summary']}" for m in matches)
+                returning_user_note = (
+                    "\n\n[SYSTEM NOTE: This email matches multiple saved trips:\n"
+                    f"{options}\n"
+                    "Ask the user which trip they'd like to continue, describing each "
+                    "option so they can recognize it.]"
+                )
+            else:
+                returning_user_note = (
+                    "\n\n[SYSTEM NOTE: No saved record was found for this email. "
+                    "Let the user know gently and offer to continue planning fresh "
+                    "from here.]"
+                )
+    elif session.get("pending_email_matches"):
+        # User is responding to "which trip is yours?" — try to match their
+        # reply against the pending candidates by destination/occasion text.
+        pending = session["pending_email_matches"]
+        lower_msg = stripped_msg.lower()
+        candidates = [
+            m for m in pending
+            if (m.get("destination_region") and m["destination_region"].lower() in lower_msg)
+            or (m.get("trip_occasion") and m["trip_occasion"].replace("_", " ").lower() in lower_msg)
+        ]
+        if len(candidates) == 1:
+            session_id = candidates[0]["session_id"]
+            history = _restore_session(session_id)
+            returning_user_note = (
+                "\n\n[SYSTEM NOTE: The user picked their saved trip "
+                f"({candidates[0]['summary']}) — it has been restored. Welcome "
+                "them back warmly and continue the conversation naturally.]"
+            )
+
+    history.append({"role": "user", "content": user_message})
+
+    # Email collection logic
+    turn_count = len([m for m in history if m["role"] == "user"])
+    profile = get_profile(session_id)
+    email_collected = bool(profile.get("email"))
+    email_declined = session.get("email_declined", False)
+    inject_email_ask = (
+        turn_count >= EMAIL_PROMPT_TURN
+        and not email_collected
+        and not email_declined
+        and not session.get("email_asked")
+    )
+
+    lower_msg = user_message.lower()
+    if any(p in lower_msg for p in ["no email", "skip", "rather not", "continue without",
+                                     "keep going", "no thanks", "no thank", "anonymous"]):
+        session["email_declined"] = True
+
+    try:
+        api_messages = history
+        if returning_user_note:
+            api_messages = history[:-1] + [{
+                "role": "user",
+                "content": user_message + returning_user_note,
+            }]
+
+        resp = claude.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            system=build_system_blocks(profile),
+            messages=api_messages,
+            stop_sequences=["\nUSER:", "\nUser:", "\nuser:", "\nASSISTANT:", "\nAssistant:"],
+        )
+        bot_reply = resp.content[0].text.strip()
+
+        # Guard against the model occasionally writing out a fake multi-turn
+        # continuation (e.g. "...question?\n\nUSER: We are a couple\nASSISTANT:
+        # Perfect!..."), which previously got stored verbatim in history and
+        # corrupted both the displayed reply and downstream slot extraction.
+        # stop_sequences above should catch this going forward; this is a
+        # belt-and-suspenders truncation for any other label variant.
+        fabricated_turn = re.search(r"\n\s*(USER|User|user|ASSISTANT|Assistant)\s*:", bot_reply)
+        if fabricated_turn:
+            print(f"WARNING: truncated fabricated multi-turn continuation: {bot_reply[fabricated_turn.start():][:200]!r}")
+            bot_reply = bot_reply[:fabricated_turn.start()].strip()
+    except Exception as e:
+        print(f"Chat API error: {e}")
+        return jsonify({"response": "I\u2019m having trouble connecting right now \u2014 please try again in a moment."}), 500
+
+    if inject_email_ask:
+        bot_reply = bot_reply + "\n\n" + EMAIL_COLLECTION_TEXT
+        session["email_asked"] = True
+
+    history.append({"role": "assistant", "content": bot_reply})
+    save_conversation_history(session_id, history)
+
+    # Run slot extraction / narrative / matching in the background so the user
+    # gets Adrian's reply immediately instead of waiting on extra Haiku/Sonnet
+    # calls. The profile, narrative, and intel panels pick up the results on
+    # their next refresh.
+    def _run_extraction(sid, hist):
+        try:
+            extract_and_save_slots(sid, hist)
+        except Exception as e:
+            print(f"Extraction dispatch error: {e}")
+
+    threading.Thread(target=_run_extraction, args=(session_id, list(history)), daemon=True).start()
+
+    # Check for handoff intent captured during slot extraction
+    try:
+        fresh_profile   = get_profile(session_id)
+        handoff_intent  = fresh_profile.get("handoff_intent") if not fresh_profile.get("handoff_generated") else None
+        advisor_name    = fresh_profile.get("advisor_name")
+    except Exception:
+        fresh_profile   = {}
+        handoff_intent  = None
+        advisor_name    = None
+
+    # Allow explicit retry even after handoff_generated — user asking to resend
+    # bypasses the gate so the connect button can re-appear.
+    if handoff_intent is None and HANDOFF_RETRY_RE.search(user_message):
+        handoff_intent = "connect_peregrine"
+
+    # The drink-calculator handoff is self-contained (it just opens /drinks
+    # in a new tab) and doesn't need profile data, so detect it directly from
+    # THIS message instead of relying solely on the background slot
+    # extraction -- that extraction runs after the response is already being
+    # built, so its result wouldn't show up until the NEXT reply, making the
+    # button appear to never fire.
+    if handoff_intent != "drink_calculator" and DRINK_CALC_INTENT_RE.search(user_message):
+        handoff_intent = "drink_calculator"
+
+    if handoff_intent:
+        # Clear handoff_intent from profile immediately after serving it so the
+        # card doesn't reappear on every subsequent turn. The drink_calculator
+        # card is self-contained; the save/connect cards need one-shot display.
+        # If the user re-signals intent later, slot extraction will set it again.
+        try:
+            profile_upd = {**fresh_profile, "handoff_intent": None}
+            sb_patch("voyage_profiles", {"session_id": f"eq.{session_id}"},
+                     {"profile": profile_upd, "updated_at": now_iso()})
+        except Exception as e:
+            print(f"Failed to clear handoff_intent after serving: {e}")
+
+    return jsonify({"response": bot_reply, "handoff_action": handoff_intent, "advisor_name": advisor_name})
+
+
+@app.route("/api/chat/reset", methods=["POST"])
+def chat_reset():
+    """Start a brand-new planning session.
+
+    IMPORTANT: this must NOT wipe the current session_id's row in place.
+    If the current session_id is a restored returning-user session (e.g.
+    after an email lookup), wiping it in place would destroy that user's
+    saved profile and history. Instead, just drop the session_id from the
+    cookie -- get_or_create_session() will create a fresh row on the next
+    /api/chat call, and the old saved session is left untouched.
+    """
+    session.pop("session_id", None)
+    session.pop("email_asked", None)
+    session.pop("email_declined", None)
+    session.pop("pending_email_matches", None)
+    return jsonify({"ok": True})
+
+
+@app.route("/dev/flush-sessions", methods=["POST"])
+def dev_flush_sessions():
+    dev_key = os.environ.get("DEV_FLUSH_KEY", "")
+    if not dev_key or request.headers.get("X-Dev-Key") != dev_key:
+        return jsonify({"error": "Unauthorized"}), 403
+    try:
+        resp = requests.delete(
+            f"{SUPABASE_URL}/rest/v1/voyage_profiles",
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/json",
+            },
+            params={"session_id": "neq.___never___"},
+            timeout=10,
+        )
+        if resp.ok:
+
+            return jsonify({"deleted": True, "status": resp.status_code})
+        return jsonify({"error": resp.text}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=debug_mode, host="0.0.0.0", port=port)

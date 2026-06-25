@@ -680,4 +680,11 @@ def run_matching(profile):
             "environment":   lines[lid]["environment"],
             "score":         scores[lid],
             "reasons":       reasons[lid],
-   
+        })
+
+    return {
+        "shortlist":      shortlist,
+        "eliminated_count": len(eliminated),
+        "eliminated":     eliminated,
+        "advisor_alerts": advisor_alerts,
+    }
