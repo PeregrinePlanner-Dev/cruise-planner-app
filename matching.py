@@ -254,13 +254,17 @@ def run_matching(profile):
             if lines[lid]["slug"] == "virgin_voyages":
                 elim(lid, "Virgin Voyages — adults-only line, not suitable for families with children")
 
-    # Lines sailed / feedback
+    # Lines sailed / preferred — strong signal, not just +1
+    all_mentioned = []
     if isinstance(lines_sailed, list):
-        for sailed in lines_sailed:
-            sailed_lower = str(sailed).lower()
-            for lid in list(lines):
-                if sailed_lower in lines[lid]["slug"] or sailed_lower in lines[lid]["name"].lower():
-                    boost(lid, 1, "Loyalty signal — previously sailed")
+        all_mentioned.extend(lines_sailed)
+    if isinstance(preferred, list):
+        all_mentioned.extend(preferred)
+    for mentioned in all_mentioned:
+        mentioned_lower = str(mentioned).lower()
+        for lid in list(lines):
+            if mentioned_lower in lines[lid]["slug"] or mentioned_lower in lines[lid]["name"].lower():
+                boost(lid, 4, "Explicitly discussed — past guest or stated preference")
 
     # ── PHASE 3: Atmosphere preference ────────────────────────────────────
 

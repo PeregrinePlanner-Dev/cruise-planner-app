@@ -354,8 +354,13 @@ def build_system_blocks(profile=None):
         handoff_parts.append(
             "HANDOFF ALREADY SENT — ENRICHMENT MODE: A complete profile has already been "
             "generated and sent for this session. The client is returning to add detail or "
-            "continue the conversation. Do not re-ask anything already in the profile. Do not "
-            "re-offer the handoff unless they ask. Your role is enrichment only."
+            "continue the conversation. Do not re-ask anything already in the profile. "
+            "If they ask to retry or say the handoff failed — say something like 'Let me "
+            "surface that button again' and the connect card will re-appear automatically. "
+            "NEVER share a handoff ID, internal reference code, or tell the user to contact "
+            "a team at any URL or email address — the button handles everything. "
+            "NEVER mention peregrine.travel — the correct site is peregrineplanner.com and "
+            "contact is hello@peregrineplanner.com. Your role is enrichment only."
         )
     elif (profile.get("cruise_line_shortlist") and not profile.get("handoff_offer_made")
           and (profile.get("travel_dates") or profile.get("travel_month"))
@@ -758,6 +763,11 @@ EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 # message on the NEXT reply).
 DRINK_CALC_INTENT_RE = re.compile(
     r"\b(open|launch|run|try|use|show|pull up|take me to|go to)\b[\s\w'-]{0,30}\b(?:(drink|beverage)\b[\s\w'-]{0,20})?(calculator|calc|tool)\b",
+    re.I,
+)
+
+HANDOFF_RETRY_RE = re.compile(
+    r"\b(resend|re.send|retry|try again|send again|didn.t (work|arrive|come|get)|failed|never (got|received|came)|not (receive|show|show up|arrive)|send (it|the profile|my profile)|connect me|connect with|advisor)\b",
     re.I,
 )
 
@@ -3027,11 +3037,16 @@ def render_client_page(rec):
         extra_rows.append(("Where you're drawn to", profile["destination_specific"]))
     if profile.get("trip_occasion"):
         extra_rows.append(("Occasion", _enum_label(profile.get("trip_occasion"), {})))
-    shortlist = profile.get("cruise_line_shortlist") or []
-    if shortlist:
-        names = [r.get("name") for r in shortlist[:3] if r.get("name")]
-        if names:
-            extra_rows.append(("Lines we're considering", ", ".join(names)))
+    # Lines we're considering — only show lines the client explicitly mentioned
+    # (lines_sailed or preferred_lines), never the algorithm's output.
+    discussed_lines = []
+    for slot in ("preferred_lines", "lines_sailed"):
+        val = profile.get(slot) or []
+        if isinstance(val, str):
+            val = [val]
+        discussed_lines.extend(val)
+    if discussed_lines:
+        extra_rows.append(("Lines we're considering", ", ".join(discussed_lines[:3])))
     if profile.get("experience_tier"):
         extra_rows.append(("Cruise style", _enum_label(profile.get("experience_tier"), EXPERIENCE_TIER_LABELS)))
     if profile.get("ship_size_preference"):
@@ -3173,6 +3188,34 @@ def handoff_generate():
             "delivery_status": "sent" if email_ok else "failed",
             "delivered_at":    now_iso() if email_ok else None,
         })
+        # Send client confirmation email with link to their vision page
+        client_email = profile.get("user_email") or profile.get("email")
+        if client_email and RESEND_API_KEY:
+            first_name = profile.get("first_name") or "there"
+            dest       = profile.get("destination_region") or "your cruise"
+            client_url = f"https://app.peregrineplanner.com/client/{client_token}"
+            try:
+                requests.post(
+                    "https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                    json={
+                        "from":    "Adrian at Peregrine <adrian@peregrineplanner.com>",
+                        "to":      [client_email],
+                        "subject": f"Your {dest} cruise profile is saved",
+                        "html":    f"""<div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#2d3748;">
+<img src="https://peregrineplanner.com/peregrine-logo.png" alt="Peregrine" style="height:64px;width:auto;display:block;margin-bottom:24px;">
+<h2 style="font-size:22px;color:#1a3d6e;margin:0 0 16px;">Hi {first_name} — your profile is saved.</h2>
+<p style="font-size:15px;line-height:1.7;margin:0 0 16px;">Everything we discussed about your {dest} trip is on file. A Peregrine advisor has your full brief and will be in touch shortly — already prepared, no starting from scratch.</p>
+<p style="font-size:15px;line-height:1.7;margin:0 0 28px;">In the meantime, you can view your cruise vision page and save your sail date once you've booked:</p>
+<a href="{client_url}" style="display:inline-block;background:#1a3d6e;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 28px;border-radius:6px;">View Your Cruise Vision →</a>
+<p style="font-size:13px;color:#718096;margin-top:32px;">Questions? Reply to this email or reach us at <a href="mailto:hello@peregrineplanner.com" style="color:#1a3d6e;">hello@peregrineplanner.com</a>.</p>
+</div>""",
+                    },
+                    timeout=10,
+                )
+            except Exception as e:
+                print(f"Client confirmation email failed (non-fatal): {e}")
+
         # Mark profile so Adrian knows a handoff is active and doesn't re-offer
         try:
             profile_upd = {**profile,
@@ -3536,6 +3579,11 @@ def chat():
         fresh_profile   = {}
         handoff_intent  = None
         advisor_name    = None
+
+    # Allow explicit retry even after handoff_generated — user asking to resend
+    # bypasses the gate so the connect button can re-appear.
+    if handoff_intent is None and HANDOFF_RETRY_RE.search(user_message):
+        handoff_intent = "connect_peregrine"
 
     # The drink-calculator handoff is self-contained (it just opens /drinks
     # in a new tab) and doesn't need profile data, so detect it directly from
