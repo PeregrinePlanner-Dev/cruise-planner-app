@@ -676,7 +676,7 @@
       <div class="chat-messages" id="chat-messages">
         <div class="message bot" id="opening-message">
           <div class="bubble" id="opening-bubble">
-            Hi, I'm Adrian — I'm here to help you plan your perfect cruise. What shall I call you?
+            What shall I call you?
           </div>
           <div class="message-time">Just now</div>
         </div>
@@ -963,7 +963,7 @@
         if (titleEl) titleEl.remove();
         if (bodyEl) bodyEl.remove();
         card.querySelector(".hc-dismiss")?.remove();
-      } catch(e) { this.textContent = cfg.label; this.disabled = false; card.querySelector(".hc-result").style.display = "block"; card.querySelector(".hc-result").textContent = "Something went wrong — try again."; }
+      } catch(e) { this.textContent = cfg.label; this.disabled = false; card.querySelector(".hc-result").style.display = "block"; card.querySelector(".hc-result").textContent = "Error: " + e.message + " — try again."; }
     });
     card.querySelector(".hc-dismiss").addEventListener("click", function() { card.remove(); });
   }
@@ -1000,7 +1000,7 @@
     messagesEl.innerHTML = `
       <div class="message bot" id="opening-message">
         <div class="bubble" id="opening-bubble">
-          Hi, I'm Adrian — I'm here to help you plan your perfect cruise. What shall I call you?
+          What shall I call you?
         </div>
         <div class="message-time">Just now</div>
       </div>
@@ -1096,7 +1096,8 @@
   async function newSession() {
     await fetch("/api/session/new", { method: "POST" });
     document.getElementById("opening-bubble").innerHTML =
-      "Hi, I'm Adrian — I'm here to help you plan your perfect cruise. What shall I call you?";
+      "What shall I call you?";
+    localStorage.removeItem("peregrine_queued_videos");
     refreshProfileCard();
     refreshAlerts();
     refreshIntel();

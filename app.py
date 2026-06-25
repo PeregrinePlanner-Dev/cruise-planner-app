@@ -693,7 +693,7 @@ def get_or_create_session():
     opening_history = [
         {
             "role": "assistant",
-            "content": "Hi \u2014 I'm Adrian, and I'm here to help you plan your perfect cruise. What shall I call you?"
+            "content": "What shall I call you?"
         }
     ]
 
@@ -1330,7 +1330,7 @@ def build_intel(profile):
     if "alaska" in destination:
         intel.append({
             "headline": "Alaska: helicopter glacier tours book out fast",
-            "body": "Glacier landing excursions in Juneau and Skagway sell out months before sailing. Check the line's excursion booking window \u2014 it opens at deposit and the best slots go immediately.",
+            "body": "Glacier landing excursions in Juneau and Skagway sell out months before sailing. Excursion booking windows vary by line and open earlier than most guests expect \u2014 the best slots go fast, so confirm the window with your advisor as soon as you book.",
         })
         intel.append({
             "headline": "Alaska wildlife: opportunistic, not guaranteed",
@@ -3170,7 +3170,7 @@ def handoff_generate():
         except Exception as e:
             print(f"Handoff email send failed (non-fatal): {e}")
         sb_patch("handoff_records", {"handoff_id": f"eq.{handoff_id}"}, {
-            "delivery_status": "sent" if email_ok else "delivery_failed",
+            "delivery_status": "sent" if email_ok else "failed",
             "delivered_at":    now_iso() if email_ok else None,
         })
         # Mark profile so Adrian knows a handoff is active and doesn't re-offer
