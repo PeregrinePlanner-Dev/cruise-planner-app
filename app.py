@@ -3666,7 +3666,7 @@ def chat():
 
         resp = claude.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=1500,
+            max_tokens=800,
             system=build_system_blocks(profile),
             messages=api_messages,
             stop_sequences=["\nUSER:", "\nUser:", "\nuser:", "\nASSISTANT:", "\nAssistant:"],
@@ -3704,7 +3704,13 @@ def chat():
         except Exception as e:
             print(f"Extraction dispatch error: {e}")
 
-    threading.Thread(target=_run_extraction, args=(session_id, list(history)), daemon=True).start()
+    # Skip extraction on short filler messages — no new slots possible, saves Haiku cost
+    _skip_extraction = len(user_message) < 12 or re.match(
+        r'^(yes|no|ok|okay|sure|thanks|thank you|got it|sounds good|great|perfect|cool|yep|nope|hi|hello|hey|please|go ahead|continue|next|more|tell me|tell me more|i see|i know|understood|agreed)[\s!.?]*$',
+        user_message.strip(), re.I
+    )
+    if not _skip_extraction:
+        threading.Thread(target=_run_extraction, args=(session_id, list(history)), daemon=True).start()
 
     # Check for handoff intent captured during slot extraction
     try:
