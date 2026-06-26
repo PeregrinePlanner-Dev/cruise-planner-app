@@ -2033,6 +2033,7 @@ def video_route():
                 "title":     v.get("label")    or v.get("title"),
                 "context":   v.get("context"),
                 "category":  v.get("category"),
+                "matched":   True,   # explicitly profile-matched — safe to queue in Your Trip
             }
 
         video = None
