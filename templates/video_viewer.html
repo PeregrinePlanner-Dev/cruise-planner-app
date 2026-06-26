@@ -345,7 +345,7 @@
     videoEl.play().catch(function(){});
 
     infoTitle.textContent   = rec.label || rec.title || "";
-    infoContext.textContent = rec.context || "";
+    infoContext.textContent = rec.context || (rec.category ? catLabel(rec.category) : "");
 
     var cat = rec.category || "";
     infoCat.textContent = catLabel(cat);
@@ -499,28 +499,9 @@
         + '<div class="video-grid">' + interests.map(function(v){ return videoCard(v, false); }).join("") + '</div>';
     } else { interestSec.innerHTML = ""; }
 
-    // Context-category videos
-    var cat = currentVideo ? (currentVideo.category || "") : "";
-    if (cat) {
-      fetch("/api/videos/browse?category=" + encodeURIComponent(cat) + "&limit=10")
-        .then(function(r){ return r.json(); })
-        .then(function(vids) {
-          var curUrl = currentVideo ? (currentVideo.url || R2 + "/" + currentVideo.file_path) : "";
-          var filtered = vids.filter(function(v){
-            return (v.url || R2 + "/" + v.file_path) !== curUrl;
-          }).slice(0, 8);
-          if (filtered.length > 0) {
-            hasContent = true;
-            contextSec.innerHTML = '<div class="section-header">More ' + catLabel(cat) + ' videos</div>'
-              + '<div class="video-grid">' + filtered.map(function(v){ return videoCard(v, false); }).join("") + '</div>';
-          } else { contextSec.innerHTML = ""; }
-          emptyEl.style.display = hasContent ? "none" : "";
-        })
-        .catch(function(){ contextSec.innerHTML = ""; });
-    } else {
-      contextSec.innerHTML = "";
-      emptyEl.style.display = hasContent ? "none" : "";
-    }
+    // No context-category filler — Your Trip only shows what belongs to this traveler
+    contextSec.innerHTML = "";
+    emptyEl.style.display = hasContent ? "none" : "";
   }
 
   function buildFilters() {

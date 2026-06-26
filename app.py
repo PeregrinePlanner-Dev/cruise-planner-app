@@ -1627,6 +1627,86 @@ def videos_browse():
         return jsonify([])
 
 
+@app.route("/api/videos/similar")
+def videos_similar():
+    """Return videos similar to the given file_path — same category and/or region tags.
+    Query params:
+      ?file_path=<path>   the current video to match against (required)
+      ?limit=<n>          max results (default 8)
+    """
+    try:
+        file_path = (request.args.get("file_path") or "").strip()
+        try:
+            limit = min(int(request.args.get("limit") or 8), 20)
+        except ValueError:
+            limit = 8
+
+        if not file_path:
+            return jsonify([])
+
+        # Look up the current video to get its category and region_tags
+        rows = sb_get("videos", {
+            "file_path": f"eq.{file_path}",
+            "select": "category,region_tags",
+            "active": "eq.true",
+            "limit": "1",
+        }) or []
+
+        if not rows:
+            return jsonify([])
+
+        cat         = rows[0].get("category") or ""
+        region_tags = rows[0].get("region_tags") or []
+
+        candidates = []
+
+        # First: same category + any overlapping region tag (most relevant)
+        if cat and region_tags:
+            for region in (region_tags[:2]):
+                import json as _json
+                results = sb_get("videos", {
+                    "select":    "file_path,label,category,short_description,region_tags",
+                    "active":    "eq.true",
+                    "category":  f"eq.{cat}",
+                    "region_tags": f'cs.["{region}"]',
+                    "limit":     str(limit + 5),
+                }) or []
+                candidates.extend(results)
+
+        # Second: same category only (broader)
+        if cat:
+            results = sb_get("videos", {
+                "select":   "file_path,label,category,short_description,region_tags",
+                "active":   "eq.true",
+                "category": f"eq.{cat}",
+                "limit":    str(limit + 5),
+            }) or []
+            candidates.extend(results)
+
+        # Deduplicate, exclude current video, trim
+        seen = {file_path}
+        out  = []
+        for r in candidates:
+            fp = r.get("file_path") or ""
+            if fp and fp not in seen:
+                seen.add(fp)
+                url = fp if fp.startswith("https://") else R2_BASE + "/" + fp
+                out.append({
+                    "url":               url,
+                    "file_path":         fp,
+                    "label":             r.get("label") or fp,
+                    "category":          r.get("category") or "",
+                    "short_description": r.get("short_description") or "",
+                })
+            if len(out) >= limit:
+                break
+
+        return jsonify(out)
+    except Exception as e:
+        print(f"videos_similar error: {e}")
+        return jsonify([])
+
+
 @app.route("/converter")
 def converter_page():
     """Standalone travel converter -- currency, weight, temp, distance, volume."""
