@@ -604,7 +604,7 @@
     var badge    = queued ? '<span class="card-queued-badge">New</span>' : "";
     // Only serialize fields playVideo() actually needs — excludes short_description and
     // any other text that may contain apostrophes, which would break the single-quoted onclick attr.
-    var play_rec = { url: url, file_path: v.file_path||"", label: v.label||v.title||"", category: v.category||"", short_description: v.short_description||"" };
+    var play_rec = { url: url, file_path: v.file_path||"", label: v.label||v.title||"", context: v.context||"", category: v.category||"", short_description: v.short_description||"" };
     var rec      = JSON.stringify(play_rec).replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
     return '<div class="video-card' + (isPlay?" playing":"") + '" data-url="' + url + '" onclick=\'playVideo(' + rec + ', true); isOnContextVid=false;\'>'
       + '<div class="card-play">&#9654;</div>'

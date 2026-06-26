@@ -2027,10 +2027,12 @@ def video_route():
             else:
                 url = R2_BASE + "/" + fp
             return {
-                "filename": fp,
-                "url":      url,
-                "title":    v.get("label")     or v.get("title"),
-                "context":  v.get("context"),
+                "filename":  fp,
+                "file_path": fp,
+                "url":       url,
+                "title":     v.get("label")    or v.get("title"),
+                "context":   v.get("context"),
+                "category":  v.get("category"),
             }
 
         video = None

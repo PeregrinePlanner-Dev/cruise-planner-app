@@ -1611,9 +1611,11 @@
           try {
             var queued = JSON.parse(localStorage.getItem("peregrine_queued_videos") || "[]");
             var entry = {
-              url:     newSrc,
-              title:   data.video.title   || "",
-              context: data.video.context || "",
+              url:       newSrc,
+              file_path: data.video.file_path || data.video.filename || "",
+              title:     data.video.title     || "",
+              context:   data.video.context   || "",
+              category:  data.video.category  || "",
             };
             var alreadyQueued = queued.some(function(v){ return v.url === entry.url; });
             if (!alreadyQueued) {
