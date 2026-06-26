@@ -650,7 +650,7 @@
       <div class="chat-messages" id="chat-messages">
         <div class="message bot" id="opening-message">
           <div class="bubble" id="opening-bubble">
-            What shall I call you?
+            Hi, I'm Adrian — I'm here to help you plan your perfect cruise. Is this your first session planning a new cruise, or do we have one already started together?
           </div>
           <div class="message-time">Just now</div>
         </div>
@@ -969,7 +969,7 @@
     messagesEl.innerHTML = `
       <div class="message bot" id="opening-message">
         <div class="bubble" id="opening-bubble">
-          What shall I call you?
+          Hi, I'm Adrian — I'm here to help you plan your perfect cruise. Is this your first session planning a new cruise, or do we have one already started together?
         </div>
         <div class="message-time">Just now</div>
       </div>
@@ -1065,8 +1065,9 @@
   async function newSession() {
     await fetch("/api/session/new", { method: "POST" });
     document.getElementById("opening-bubble").innerHTML =
-      "What shall I call you?";
+      "Hi, I’m Adrian — your personal cruise planning assistant. What shall I call you?";
     localStorage.removeItem("peregrine_queued_videos");
+    localStorage.removeItem("peregrine_video_interests");
     refreshProfileCard();
     refreshAlerts();
     refreshIntel();

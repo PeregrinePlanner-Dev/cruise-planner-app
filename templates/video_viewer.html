@@ -399,7 +399,10 @@
     }
     if (e.key === "peregrine_queued_videos") {
       loadTripPanel();
-      chipQueue.classList.add("visible");
+      // Only show the "new video" chip when content was added, not when cleared
+      if (e.newValue && JSON.parse(e.newValue || "[]").length > 0) {
+        chipQueue.classList.add("visible");
+      }
     }
     if (e.key === "peregrine_video_interests") {
       updateInterestBtn();

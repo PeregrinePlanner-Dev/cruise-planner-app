@@ -702,7 +702,7 @@ def get_or_create_session():
     opening_history = [
         {
             "role": "assistant",
-            "content": "What shall I call you?"
+            "content": "Hi, I'm Adrian — I'm here to help you plan your perfect cruise. Is this your first session planning a new cruise, or do we have one already started together?"
         }
     ]
 
