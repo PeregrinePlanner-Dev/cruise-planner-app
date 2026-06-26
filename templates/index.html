@@ -376,6 +376,13 @@
     .video-caption {
       padding: 5px 2px 0;
       display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .video-caption-text {
+      display: flex;
       flex-direction: column;
       gap: 1px;
     }
@@ -744,15 +751,15 @@
       </video>
     </div>
     <div class="video-caption">
-      <div class="video-caption-title" id="video-caption-title">Port Everglades · Fort Lauderdale</div>
-      <div class="video-caption-context" id="video-caption-context">your departure port</div>
+      <div class="video-caption-text">
+        <div class="video-caption-title" id="video-caption-title">Port Everglades · Fort Lauderdale</div>
+        <div class="video-caption-context" id="video-caption-context">your departure port</div>
+      </div>
+      <button id="explore-videos-btn" style="font-size:11px; font-weight:600; color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; cursor:pointer; font-family:inherit; white-space:nowrap; flex-shrink:0;">▶ Explore Videos</button>
     </div>
     <div id="port-card-container" style="display:none; margin-top:8px;">
       <div class="panel-label" style="color:#1d4ed8; margin-bottom:4px;">⚓ Port Info</div>
       <div class="port-card" id="port-card"></div>
-    </div>
-    <div style="display:flex; justify-content:flex-end; margin-top:5px; margin-bottom:2px;">
-      <button id="explore-videos-btn" style="font-size:11px; font-weight:600; color:#1d4ed8; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; cursor:pointer; font-family:inherit;">▶ Explore Videos</button>
     </div>
     <div class="panel-label intel-label" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between;">
       <span>✦ Insider Intel</span>
