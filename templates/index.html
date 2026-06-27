@@ -1603,10 +1603,11 @@
         if (ctxEl)   ctxEl.textContent   = data.video.context || "";
         try {
           localStorage.setItem("peregrine_context_video", JSON.stringify({
-            url:      newSrc,
-            title:    data.video.title   || "",
-            context:  data.video.context || "",
-            category: data.video.category || "",
+            url:       newSrc,
+            file_path: data.video.file_path || data.video.filename || "",
+            title:     data.video.title   || "",
+            context:   data.video.context || "",
+            category:  data.video.category || "",
           }));
           // Only queue profile-matched videos in Your Trip — not generic rotation videos
           if (data.video.matched) {
@@ -1652,4 +1653,4 @@
 </script>
 </body>
 </html>
-                                                                                                                                                                                                                     
+                                                                                                                                       

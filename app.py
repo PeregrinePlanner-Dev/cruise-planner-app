@@ -2005,7 +2005,7 @@ def video_route():
         destination  = (profile.get("destination_region") or "").lower()
 
         wired = sb_get("videos", {
-            "select": "file_path,label,context,trigger_field,trigger_keywords,priority",
+            "select": "file_path,label,category,context,trigger_field,trigger_keywords,priority",
             "active": "eq.true",
             "trigger_field": "not.is.null",
             "order": "priority.asc",
@@ -3879,4 +3879,4 @@ def dev_flush_sessions():
 if __name__ == "__main__":
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=debug_mode, host="0.0.0.0", port=port)
+    app.run(debug=debug_mode, host="0.0.0.0", p
