@@ -20,7 +20,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET", "dev-secret-change-in-production")
+_flask_secret = os.environ.get("FLASK_SECRET", "dev-secret-change-in-production")
+if _flask_secret == "dev-secret-change-in-production":
+    import sys
+    print("CRITICAL: FLASK_SECRET is not set. Session cookies are insecure. Set this env var on Render immediately.", file=sys.stderr)
+app.secret_key = _flask_secret
 
 # ── Supabase ──────────────────────────────────────────────────────────────
 SUPABASE_URL   = os.environ.get("SUPABASE_URL")
@@ -3399,6 +3403,19 @@ def handoff_generate():
         return jsonify({"error": "No active session."}), 400
     try:
         profile = get_profile(session_id)
+        # F1 guard: if handoff already succeeded, return existing data — prevents duplicate emails on double-click
+        if profile.get("handoff_generated") and profile.get("handoff_id"):
+            existing_id = profile["handoff_id"]
+            rows = sb_get("handoff_records", {"handoff_id": f"eq.{existing_id}", "limit": "1"})
+            client_token = rows[0].get("client_token") if rows else None
+            return jsonify({
+                "handoff_id":   existing_id,
+                "client_token": client_token,
+                "advisor_url":  f"/handoff/{existing_id}",
+                "client_url":   f"/client/{client_token}" if client_token else None,
+                "email_sent":   True,
+                "already_done": True,
+            })
         if not profile.get("destination_region") and not profile.get("party_size"):
             return jsonify({"error": "Profile is too incomplete to generate a handoff."}), 400
         from matching import run_matching
@@ -3451,21 +3468,24 @@ def handoff_generate():
             except Exception as e:
                 print(f"Client confirmation email failed (non-fatal): {e}")
 
-        # Mark profile so Adrian knows a handoff is active and doesn't re-offer
+        # F2: only mark handoff_generated=True when advisor email actually sent.
+        # If email failed, leave the flag False so the user can retry.
         try:
             profile_upd = {**profile,
-                           "handoff_generated": True,
+                           "handoff_generated": email_ok,
                            "handoff_id": handoff_id,
                            "handoff_intent": None}
             sb_patch("voyage_profiles", {"session_id": f"eq.{session_id}"},
                      {"profile": profile_upd, "updated_at": now_iso()})
         except Exception as e:
             print(f"Profile handoff flag error: {e}")
+        # F3: surface email success/failure to the frontend
         return jsonify({
             "handoff_id":   handoff_id,
             "client_token": client_token,
             "advisor_url":  f"/handoff/{handoff_id}",
             "client_url":   f"/client/{client_token}",
+            "email_sent":   email_ok,
         })
     except Exception as e:
         import traceback; print(traceback.format_exc())

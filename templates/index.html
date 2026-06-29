@@ -923,7 +923,12 @@
         if (d.error) throw new Error(d.error);
         const result = card.querySelector(".hc-result");
         result.style.display = "block";
-        result.innerHTML = d.client_url ? "Done. <a href=\"" + d.client_url + "\" target=\"_blank\" style=\"color:#2563eb;\">Open your cruise vision page</a>" : "Saved — everything is on file.";
+        if (d.email_sent === false) {
+          result.innerHTML = "Profile saved — but we had trouble reaching your advisor. You can try again, or email us at <a href=\"mailto:hello@peregrineplanner.com\" style=\"color:#2563eb;\">hello@peregrineplanner.com</a>.";
+          this.style.display = "inline-block"; this.disabled = false; this.textContent = cfg.label;
+        } else {
+          result.innerHTML = d.client_url ? "Done. <a href=\"" + d.client_url + "\" target=\"_blank\" style=\"color:#2563eb;\">Open your cruise vision page</a>" : "Saved — everything is on file.";
+        }
         this.style.display = "none";
         // Collapse the prompt card down to just the confirmation once saved —
         // no need to keep the ask-permission framing around afterward.
@@ -1643,4 +1648,3 @@
 </script>
 </body>
 </html>
-                                                                                                                                                                                                                     
