@@ -288,7 +288,8 @@
     function populateLines() {
       const lineSelect = document.getElementById("line-select");
       const lines = [...new Set(packages.map(p => p.cruise_line))].sort((a, b) => a.localeCompare(b));
-      lineSelect.innerHTML = lines.map(l => `<option value="${l}">${l}</option>`).join("");
+      lineSelect.innerHTML = `<option value="">— Select cruise line —</option>` +
+        lines.map(l => `<option value="${l}">${l}</option>`).join("");
       lineSelect.addEventListener("change", populatePackages);
       populatePackages();
     }
@@ -303,6 +304,14 @@
     function populatePackages() {
       const line = document.getElementById("line-select").value;
       const pkgSelect = document.getElementById("package-select");
+      if (!line) {
+        pkgSelect.innerHTML = `<option value="">— Select a cruise line first —</option>`;
+        setBox("caption-box", null);
+        setBox("perk-box", null);
+        setBox("additional-box", null);
+        document.getElementById("result").innerHTML = "Pick a cruise line and package above, then calculate.";
+        return;
+      }
       const opts = packages.filter(p => p.cruise_line === line);
       pkgSelect.innerHTML = opts.map((p, i) =>
         `<option value="${i}">${packageLabel(p)} — $${Number(p.daily_price_pp).toFixed(0)}/day</option>`

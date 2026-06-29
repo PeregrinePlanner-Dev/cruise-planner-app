@@ -865,11 +865,12 @@
       typingEl.style.display = "none";
       stopVoyage();
       appendMessage(data.response || "Sorry, something went wrong.", "bot");
-      refreshProfileCard();
       refreshAlerts();
       refreshIntel();
       refreshVideo();
       refreshPortCard();
+      // Delay profile refresh slightly so background slot-extraction finishes before we read the DB
+      setTimeout(refreshProfileCard, 2500);
       // Show handoff action card when Adrian captures client intent
       if (data.handoff_action) {
         showHandoffCard(data.handoff_action, data.advisor_name || null);
@@ -1068,7 +1069,7 @@
       "Hi, I’m Adrian — your personal cruise planning assistant. What shall I call you?";
     localStorage.removeItem("peregrine_queued_videos");
     localStorage.removeItem("peregrine_video_interests");
-    refreshProfileCard();
+    localStorage.removeItem("peregrine_context_video");
     refreshAlerts();
     refreshIntel();
     refreshVideo();
@@ -1600,6 +1601,7 @@
       if (data.video === null) {
         if (panel)   panel.style.display   = "none";
         if (caption) caption.style.display = "none";
+        try { localStorage.removeItem("peregrine_context_video"); } catch {}
       } else {
         if (panel)   panel.style.display   = "";
         if (caption) caption.style.display = "";
