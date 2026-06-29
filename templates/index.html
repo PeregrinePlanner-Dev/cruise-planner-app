@@ -849,6 +849,8 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  let _profileRefreshTimer = null;
+
   async function sendMessage() {
     const text = inputEl.value.trim();
     if (!text) return;
@@ -873,10 +875,12 @@
       appendMessage(data.response || "Sorry, something went wrong.", "bot");
       refreshAlerts();
       refreshIntel();
-      refreshVideo();
-      refreshPortCard();
+      // Delay video and port card - they depend on destination slot which extracts in background
+      setTimeout(refreshVideo, 1500);
+      setTimeout(refreshPortCard, 1500);
       // Delay profile refresh slightly so background slot-extraction finishes before we read the DB
-      setTimeout(refreshProfileCard, 2500);
+      clearTimeout(_profileRefreshTimer);
+      _profileRefreshTimer = setTimeout(refreshProfileCard, 2500);
       // Show handoff action card when Adrian captures client intent
       if (data.handoff_action) {
         showHandoffCard(data.handoff_action, data.advisor_name || null);
@@ -1078,9 +1082,9 @@
     await fetch("/api/session/new", { method: "POST" });
     document.getElementById("opening-bubble").innerHTML =
       "Hi, I’m Adrian — your personal cruise planning assistant. What shall I call you?";
-    localStorage.removeItem("peregrine_queued_videos");
-    localStorage.removeItem("peregrine_video_interests");
-    localStorage.removeItem("peregrine_context_video");
+    try { localStorage.removeItem("peregrine_queued_videos"); } catch(e) {}
+    try { localStorage.removeItem("peregrine_video_interests"); } catch(e) {}
+    try { localStorage.removeItem("peregrine_context_video"); } catch(e) {}
     refreshAlerts();
     refreshIntel();
     refreshVideo();
@@ -1090,7 +1094,7 @@
 
   // Clear queued videos on every page load — Your Trip starts empty each session.
   // Videos are only added to the queue when Adrian explicitly recommends them.
-  localStorage.removeItem("peregrine_queued_videos");
+  try { localStorage.removeItem("peregrine_queued_videos"); } catch(e) {}
 
   // Sequence page-load refresh after session check resolves.
   // If returning, panels stay blank until user clicks Continue — don't let
@@ -1654,3 +1658,4 @@
 </script>
 </body>
 </html>
+ 

@@ -740,14 +740,23 @@ def save_conversation_history(session_id, history):
              {"conversation_history": history, "last_active_at": now_iso()})
 
 
+_MONTH_NUM = {
+    "january": 1, "february": 2, "march": 3, "april": 4,
+    "may": 5, "june": 6, "july": 7, "august": 8,
+    "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
 def _clear_stale_travel_year(profile):
-    """If travel_year is set and already in the past, clear it so saved
-    profiles don't keep showing a bygone year (e.g. 'April 2025' read back
+    """If travel_year/month is already in the past, clear it so saved
+    profiles don't keep showing a bygone date (e.g. 'April 2026' read back
     in June 2026). Returns the profile, mutated in place."""
     try:
         if profile.get("travel_year") and profile.get("travel_month"):
             import datetime as _dt
-            if int(profile["travel_year"]) < _dt.datetime.now().year:
+            now = _dt.datetime.now()
+            year = int(profile["travel_year"])
+            month_num = _MONTH_NUM.get(str(profile["travel_month"]).lower())
+            if year < now.year or (year == now.year and month_num and month_num < now.month):
                 profile["travel_year"] = None
     except Exception:
         pass
@@ -1151,7 +1160,10 @@ def extract_and_save_slots(session_id, history):
         if merged.get("travel_year") and merged.get("travel_month") and "travel_year" not in filtered:
             try:
                 import datetime as _dt
-                if int(merged["travel_year"]) < _dt.datetime.now().year:
+                now = _dt.datetime.now()
+                _yr = int(merged["travel_year"])
+                _mo = _MONTH_NUM.get(str(merged["travel_month"]).lower())
+                if _yr < now.year or (_yr == now.year and _mo and _mo < now.month):
                     merged["travel_year"] = None
                     print("SLOT EXTRACTION: cleared stale past travel_year")
             except Exception:
@@ -3802,6 +3814,8 @@ def chat():
     user_message = data.get("message", "").strip()
     if not user_message:
         return jsonify({"response": ""}), 400
+    if len(user_message) > 4000:
+        return jsonify({"response": "That's a lot to take in at once! Try breaking it into a couple of shorter messages and I'll work through them with you."}), 200
 
     try:
         session_id, history, is_new = get_or_create_session()

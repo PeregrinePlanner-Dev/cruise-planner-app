@@ -448,7 +448,7 @@
         added_at:            new Date().toISOString()
       });
     }
-    localStorage.setItem("peregrine_video_interests", JSON.stringify(interests));
+    try { localStorage.setItem("peregrine_video_interests", JSON.stringify(interests)); } catch(e) {}
     updateInterestBtn();
     updateInterestCount();
   }
