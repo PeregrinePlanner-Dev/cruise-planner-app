@@ -926,8 +926,9 @@ def generate_narrative(session_id, profile):
         if not parts:
             return
 
+        # E6: Haiku is fast enough for a 2-3 sentence portrait paragraph — ~20x cheaper than Sonnet
         resp = claude.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-haiku-4-5-20251001",
             max_tokens=300,
             system=NARRATIVE_GENERATION_PROMPT,
             messages=[{
@@ -950,10 +951,18 @@ def maybe_run_matching(session_id, profile):
     Writes cruise_line_shortlist and cruise_line_negative_signals to profile."""
     destination = profile.get("destination_region")
     has_party   = any(profile.get(k) for k in ("party_composition", "party_size", "has_children"))
-    # B5+C4: don't match until destination is confirmed in conversation — prevents
-    # "maybe Norway" from building a shortlist and triggering Phase 7 too early
+    # B5+C4: don't match until destination is confirmed in conversation
     dest_confirmed = profile.get("destination_confirmed", False)
     if not destination or not has_party or not dest_confirmed:
+        return
+    # D1: skip re-run if the key matching inputs haven't changed since last run
+    import hashlib as _hl, json as _js
+    _key_fields = ["destination_region", "party_composition", "party_size", "has_children",
+                   "experience_tier", "budget_tier", "client_excluded_lines"]
+    _key_data   = {k: profile.get(k) for k in _key_fields}
+    _match_key  = _hl.md5(_js.dumps(_key_data, sort_keys=True).encode()).hexdigest()[:10]
+    if profile.get("_matching_key") == _match_key and profile.get("cruise_line_shortlist"):
+        print(f"MATCHING: skipped — inputs unchanged (key={_match_key})")
         return
     try:
         from matching import run_matching
@@ -963,6 +972,7 @@ def maybe_run_matching(session_id, profile):
         current   = get_profile(session_id)
         current["cruise_line_shortlist"]        = [{"slug": r["slug"], "name": r["name"], "score": r["score"]} for r in shortlist]
         current["cruise_line_negative_signals"] = [{"slug": r["slug"], "name": r["name"], "reason": r["reason"]} for r in elim]
+        current["_matching_key"] = _match_key  # D1: store key so next turn can skip if unchanged
         sb_patch("voyage_profiles",
                  {"session_id": f"eq.{session_id}"},
                  {"profile": current, "updated_at": now_iso()})
@@ -3076,7 +3086,7 @@ hr{{border:none;border-top:1px solid #e5e7eb;margin:32px 0}}
 
 @app.route("/api/handoff")
 def handoff_route():
-    """Generate and return the advisor handoff HTML document."""
+    """Preview handoff HTML — uses cached shortlist and portrait if available (E7: no redundant API calls)."""
     session_id = session.get("session_id")
     if not session_id:
         return "No active session.", 400
@@ -3084,11 +3094,23 @@ def handoff_route():
         profile = get_profile(session_id)
         if not profile.get("destination_region") and not profile.get("party_size"):
             return "Profile is too incomplete to generate a handoff.", 400
-        from matching import run_matching
-        result         = run_matching(profile)
-        shortlist      = result.get("shortlist", [])
-        eliminated     = result.get("eliminated", [])
-        advisor_alerts = result.get("advisor_alerts", [])
+        # E7: use cached data if a handoff already exists — avoid re-running matching + Sonnet
+        handoff_id = profile.get("handoff_id")
+        if handoff_id:
+            rows = sb_get("handoff_records", {"handoff_id": f"eq.{handoff_id}", "limit": "1"})
+            if rows:
+                return rows[0].get("html_body", "Handoff on file."), 200, {"Content-Type": "text/html; charset=utf-8"}
+        # Fall back to fresh generation only if no saved handoff exists
+        if profile.get("cruise_line_shortlist"):
+            shortlist      = profile["cruise_line_shortlist"]
+            eliminated     = profile.get("cruise_line_negative_signals", [])
+            advisor_alerts = []
+        else:
+            from matching import run_matching
+            result         = run_matching(profile)
+            shortlist      = result.get("shortlist", [])
+            eliminated     = result.get("eliminated", [])
+            advisor_alerts = result.get("advisor_alerts", [])
         portrait = generate_portrait_llm(profile, shortlist, eliminated, advisor_alerts)
         html     = render_handoff_html(profile, shortlist, eliminated, advisor_alerts, portrait)
         return html, 200, {"Content-Type": "text/html; charset=utf-8"}
@@ -3493,11 +3515,18 @@ def handoff_generate():
             })
         if not profile.get("destination_region") and not profile.get("party_size"):
             return jsonify({"error": "Profile is too incomplete to generate a handoff."}), 400
-        from matching import run_matching
-        result         = run_matching(profile)
-        shortlist      = result.get("shortlist", [])
-        eliminated     = result.get("eliminated", [])
-        advisor_alerts = result.get("advisor_alerts", [])
+        # D3: use already-computed shortlist if available — avoids redundant matching at handoff time
+        if profile.get("cruise_line_shortlist"):
+            shortlist      = profile["cruise_line_shortlist"]
+            eliminated     = profile.get("cruise_line_negative_signals", [])
+            advisor_alerts = []
+            print("HANDOFF: using cached shortlist — skipping run_matching()")
+        else:
+            from matching import run_matching
+            result         = run_matching(profile)
+            shortlist      = result.get("shortlist", [])
+            eliminated     = result.get("eliminated", [])
+            advisor_alerts = result.get("advisor_alerts", [])
         portrait       = generate_portrait_llm(profile, shortlist, eliminated, advisor_alerts)
         data_in        = request.get_json() or {}
         opted_in       = data_in.get("client_opted_in", False)
@@ -3867,12 +3896,16 @@ def chat():
         session["email_declined"] = True
 
     try:
-        api_messages = history
+        # B2: use truncated history for Sonnet — keeps per-turn cost flat on long conversations.
+        # Slot extraction still uses full history (in _run_extraction below).
+        _truncated = build_conversation_history(history, profile)
         if returning_user_note:
-            api_messages = history[:-1] + [{
+            api_messages = _truncated[:-1] + [{
                 "role": "user",
                 "content": user_message + returning_user_note,
             }]
+        else:
+            api_messages = _truncated
 
         resp = claude.messages.create(
             model="claude-sonnet-4-6",
