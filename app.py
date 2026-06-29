@@ -25,6 +25,8 @@ if _flask_secret == "dev-secret-change-in-production":
     import sys
     print("CRITICAL: FLASK_SECRET is not set. Session cookies are insecure. Set this env var on Render immediately.", file=sys.stderr)
 app.secret_key = _flask_secret
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 # ── Supabase ──────────────────────────────────────────────────────────────
 SUPABASE_URL   = os.environ.get("SUPABASE_URL")
@@ -776,7 +778,7 @@ DRINK_CALC_INTENT_RE = re.compile(
 )
 
 HANDOFF_RETRY_RE = re.compile(
-    r"\b(resend|re.send|retry|try again|send again|didn.t (work|arrive|come|get)|failed|never (got|received|came)|not (receive|show|show up|arrive)|send (it|the profile|my profile)|connect me|connect with|handoff|hand.off|hand off|no button|button.*(not|didn|don|never)|again|let.s (try|send|connect|go)|advisor)\b",
+    r"\b(resend|re.send|retry|try again|send again|didn.t (work|arrive|come|get)|never (got|received|came)|not (receive|show|show up|arrive)|send (the profile|my profile)|connect me now|handoff|hand.off|hand off|no button|button.*(not|didn|don|never)|let.s (resend|retry)|send it again)\b",
     re.I,
 )
 
@@ -1750,14 +1752,20 @@ def advisor_inquiry():
     if not name or not agency or not email:
         return "Missing required fields.", 400
 
+    import html as _html
     if RESEND_API_KEY:
-        clia_line  = f"<p><strong>CLIA #:</strong> {clia}</p>" if clia else ""
-        notes_line = f"<p><strong>Practice notes:</strong> {notes}</p>" if notes else ""
+        s_name   = _html.escape(name)
+        s_agency = _html.escape(agency)
+        s_email  = _html.escape(email)
+        s_clia   = _html.escape(clia)
+        s_notes  = _html.escape(notes)
+        clia_line  = f"<p><strong>CLIA #:</strong> {s_clia}</p>" if s_clia else ""
+        notes_line = f"<p><strong>Practice notes:</strong> {s_notes}</p>" if s_notes else ""
         html_body  = f"""
 <h2>New Advisor Inquiry — Peregrine</h2>
-<p><strong>Name:</strong> {name}</p>
-<p><strong>Agency:</strong> {agency}</p>
-<p><strong>Email:</strong> {email}</p>
+<p><strong>Name:</strong> {s_name}</p>
+<p><strong>Agency:</strong> {s_agency}</p>
+<p><strong>Email:</strong> {s_email}</p>
 {clia_line}
 {notes_line}
 """
@@ -3699,7 +3707,11 @@ def chat():
     if not user_message:
         return jsonify({"response": ""}), 400
 
-    session_id, history, is_new = get_or_create_session()
+    try:
+        session_id, history, is_new = get_or_create_session()
+    except Exception as e:
+        print(f"get_or_create_session failed: {e}")
+        return jsonify({"response": "I'm having a little trouble connecting right now. Give it a moment and try again."}), 200
 
     # Returning-user email lookup: if the user's message is just an email
     # address and this session doesn't already have a profile started,

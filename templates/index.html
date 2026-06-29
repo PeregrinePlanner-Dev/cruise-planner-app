@@ -835,10 +835,16 @@
   function appendMessage(text, role) {
     const msg = document.createElement("div");
     msg.className = `message ${role}`;
-    msg.innerHTML = `
-      <div class="bubble">${text.replace(/\n/g, "<br>")}</div>
-      <div class="message-time">${getTime()}</div>
-    `;
+    // H1: innerText prevents XSS — no HTML injection from user or bot messages
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.innerText = text;
+    const timeDiv = document.createElement("div");
+    timeDiv.className = "message-time";
+    timeDiv.textContent = getTime();
+    msg.appendChild(bubble);
+    msg.appendChild(timeDiv);
+    const _compat = ``;
     messagesEl.insertBefore(msg, typingEl);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }

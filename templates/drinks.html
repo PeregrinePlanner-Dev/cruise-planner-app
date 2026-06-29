@@ -359,6 +359,18 @@
       });
     }
 
+    // Detect whether a package covers alcohol at all, based on includes_notes.
+    function isNonAlcoholic(pkg) {
+      const notes = (pkg.includes_notes || "").toLowerCase();
+      if (!notes) return false; // G3: no data — don't assume non-alcoholic
+      // G2: check alcohol keywords first so "cocktails and sodas" is never flagged
+      const alcoholKeywords = ["cocktail","spirit","spirits","wine","beer","alcohol","liquor","booze"];
+      if (alcoholKeywords.some(k => notes.includes(k))) return false;
+      // G1: require an explicit non-alcohol signal — generic notes don't count
+      const softKeywords = ["non-alcoholic","soda","soft drink","juice","coffee","water","mocktail","sparkling water","lemonade","tea"];
+      return softKeywords.some(k => notes.includes(k));
+    }
+
     function runAnalysis() {
       const pkg = currentPackage();
       const result = document.getElementById("result");
@@ -376,8 +388,55 @@
       const coffeePrice   = parseFloat(document.getElementById("coffee-price").value)   || 0;
       const coffeeQty     = parseFloat(document.getElementById("coffee-qty").value)     || 0;
 
-      const GRATUITY = 0.18; // typical onboard beverage gratuity rate for a la carte pricing
+      const GRATUITY = 0.18;
+      const packagePrice = Number(pkg.daily_price_pp);
 
+      // --- Non-alcoholic packages (soda, juice, coffee only) ---
+      // These don't touch your alcohol spend — cocktails, beer, and wine are
+      // still paid a la carte on top. Compare only what the package actually covers.
+      if (isNonAlcoholic(pkg)) {
+        // What the package might cover: coffee and/or soda/juice (not alcohol)
+        const coffeeAlaCarteDaily = coffeePrice * coffeeQty * (1 + GRATUITY);
+        const alcoholAlaCarteDaily = (
+          cocktailPrice * cocktailQty +
+          beerPrice     * beerQty +
+          winePrice     * wineQty
+        ) * (1 + GRATUITY);
+
+        const softDrinkSavings = coffeeAlaCarteDaily - packagePrice;
+        let html = "";
+
+        if (softDrinkSavings >= 0) {
+          html += `<div class="big save">Estimated soft-drink savings: $${softDrinkSavings.toFixed(2)} / day</div>`;
+        } else {
+          html += `<div class="big cost">Estimated extra cost vs. paying a la carte: $${Math.abs(softDrinkSavings).toFixed(2)} / day</div>`;
+        }
+
+        html += `<div style="margin-top:8px;"><strong>Important:</strong> The ${packageLabel(pkg)} covers
+                 non-alcoholic beverages only — cocktails, beer, and wine are <em>not</em> included
+                 and are still charged a la carte on top of the package price.</div>`;
+
+        if (alcoholAlaCarteDaily > 0) {
+          html += `<div style="margin-top:8px;">Based on your inputs, your alcohol spend would be an
+                   additional <strong>$${alcoholAlaCarteDaily.toFixed(2)}/day</strong> a la carte (with gratuity),
+                   on top of the $${packagePrice.toFixed(2)}/day package — for a total of roughly
+                   <strong>$${(packagePrice + alcoholAlaCarteDaily).toFixed(2)}/day</strong> all-in.</div>`;
+        }
+
+        if (coffeeAlaCarteDaily > 0) {
+          html += `<div style="margin-top:8px;">The specialty coffee comparison: $${coffeeAlaCarteDaily.toFixed(2)}/day
+                   a la carte vs. $${packagePrice.toFixed(2)}/day for the package — check the package
+                   description above to confirm whether specialty coffee is covered.</div>`;
+        }
+
+        if (pkg.includes_notes) {
+          html += `<div style="margin-top:10px; color:#64748b; font-size:12px;">Includes: ${pkg.includes_notes}</div>`;
+        }
+        result.innerHTML = html;
+        return;
+      }
+
+      // --- Standard alcoholic package ---
       const items = [
         { price: cocktailPrice, qty: cocktailQty },
         { price: beerPrice,     qty: beerQty },
@@ -395,78 +454,4 @@
       // that overage (per cap_overage_note).
       const cap = pkg.per_drink_cap ? Number(pkg.per_drink_cap) : null;
       let overageTotal = 0;
-      if (cap != null) {
-        items.forEach(it => {
-          if (it.price > cap) {
-            overageTotal += (it.price - cap) * it.qty;
-          }
-        });
-        overageTotal *= (1 + GRATUITY);
-      }
-
-      const packagePrice = Number(pkg.daily_price_pp);
-      const perkValue = pkg.non_drink_perk_value ? Number(pkg.non_drink_perk_value) : 0;
-      const drinkBudget = packagePrice - perkValue;
-      const packageEffectiveCost = drinkBudget + overageTotal;
-      const dailyDifference = alaCarteTotal - packageEffectiveCost;
-
-      let html = "";
-      if (dailyDifference >= 0) {
-        html += `<div class="big save">Estimated drink-budget savings: $${dailyDifference.toFixed(2)} / day</div>`;
-        html += `<div style="margin-top:8px;">Paying a la carte (with gratuity) would run about
-                 <strong>$${alaCarteTotal.toFixed(2)}/day</strong>. The ${packageLabel(pkg)} costs
-                 <strong>$${packagePrice.toFixed(2)}/day</strong>`;
-      } else {
-        html += `<div class="big cost">Estimated extra cost: $${Math.abs(dailyDifference).toFixed(2)} / day</div>`;
-        html += `<div style="margin-top:8px;">Based on these habits, paying a la carte (with gratuity)
-                 would run about <strong>$${alaCarteTotal.toFixed(2)}/day</strong>. The ${packageLabel(pkg)}
-                 costs <strong>$${packagePrice.toFixed(2)}/day</strong>`;
-      }
-
-      if (perkValue > 0) {
-        html += `, of which about <strong>$${perkValue.toFixed(2)}/day</strong> covers non-drink perks
-                  (see below) — leaving roughly <strong>$${drinkBudget.toFixed(2)}/day</strong> as the
-                  effective drink budget`;
-      }
-
-      if (overageTotal > 0) {
-        html += `, plus an estimated <strong>$${overageTotal.toFixed(2)}/day</strong> in overage
-                  charges for drinks above the $${cap.toFixed(2)} per-drink cap`;
-      }
-      html += `. That works out to about <strong>$${packageEffectiveCost.toFixed(2)}/day</strong>
-               for drinks specifically vs. <strong>$${alaCarteTotal.toFixed(2)}/day</strong> a la carte.</div>`;
-
-      if (pkg.includes_notes) {
-        html += `<div style="margin-top:10px; color:#64748b; font-size:12px;">Includes: ${pkg.includes_notes}</div>`;
-      }
-
-      result.innerHTML = html;
-    }
-
-    function setupReferralUI() {
-      const ref = new URLSearchParams(window.location.search).get("ref");
-      if (ref === "planner") {
-        const backLink = document.getElementById("back-link");
-        backLink.style.display = "inline-block";
-        backLink.addEventListener("click", function (e) {
-          e.preventDefault();
-          // This page opens in a new tab from the planner. Close this tab
-          // to return to the original planner tab rather than loading a
-          // second planner instance here. Fall back to navigating "/" if
-          // the tab can't be closed (e.g. wasn't opened via script).
-          window.close();
-          setTimeout(function () {
-            window.location.href = "/";
-          }, 300);
-        });
-      } else {
-        document.getElementById("intro-card").style.display = "block";
-      }
-    }
-
-    loadPackages();
-    wireResetOnChange();
-    setupReferralUI();
-  </script>
-</body>
-</html>
+      if (cap != null) 
