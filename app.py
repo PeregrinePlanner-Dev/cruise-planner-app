@@ -410,7 +410,9 @@ EMAIL_COLLECTION_TEXT = (
 
 SLOT_EXTRACTION_PROMPT = """You are a data extraction assistant. Read the cruise planning conversation and extract profile information the user has explicitly stated. Return ONLY a valid JSON object. Do not infer, guess, or assume — only extract what the user directly said. Use null for anything not explicitly stated.
 
-THE CARDINAL RULE: If the user did not say it, it is null. Do not fill slots based on what seems likely, what the destination suggests, or what the bot thinks is implied. A user who says "I want adventure" has not stated an excursion style, a pace preference, or specific port interests — those are null until they say so explicitly. When in doubt, null.
+THE CARDINAL RULE: If the user did not say it, it is null. Do not fill slots based on what seems likely, what the destination suggests, or what the bot thinks is implied.
+
+CORRECTIONS — when the user explicitly removes or reverses a previously stated value, return the string "__CLEAR__" for that slot (not null). This is how the system knows the difference between "not mentioned" (null) and "user cancelled it" (__CLEAR__). Only use __CLEAR__ for these correctable slots: destination_region, destination_specific, party_composition, party_size, child_ages, has_children, travel_month, travel_year, cabin_preference, departing_from, travel_mode. Examples: "actually we're not bringing kids" → child_ages: "__CLEAR__", has_children: "__CLEAR__". "Forget the Mediterranean, let's do Alaska" → destination_region: "Alaska", destination_specific: "__CLEAR__" (if a specific place was named before). "Just the two of us, no kids" after previously mentioning children → child_ages: "__CLEAR__", has_children: false. Never use __CLEAR__ for slots the user simply didn't mention — only when they explicitly walked something back. A user who says "I want adventure" has not stated an excursion style, a pace preference, or specific port interests — those are null until they say so explicitly. When in doubt, null.
 
 WHAT THIS MEANS IN PRACTICE — do not capture these common inference traps:
 - excursion_style: do not infer from destination interest. Only capture if the user explicitly said they prefer ship-booked, independent, etc.
@@ -1027,7 +1029,15 @@ def extract_and_save_slots(session_id, history):
                 raw = json_match.group(0)
 
         new_slots = json.loads(raw)
-        filtered = {k: v for k, v in new_slots.items() if v is not None}
+        # B3: separate __CLEAR__ sentinels (explicit corrections) from regular slots.
+        # null = not mentioned (skip). "__CLEAR__" = user cancelled it (set to null in profile).
+        _CORRECTABLE = {
+            "destination_region", "destination_specific", "party_composition", "party_size",
+            "child_ages", "has_children", "travel_month", "travel_year",
+            "cabin_preference", "departing_from", "travel_mode",
+        }
+        cleared_slots = {k for k, v in new_slots.items() if v == "__CLEAR__" and k in _CORRECTABLE}
+        filtered = {k: v for k, v in new_slots.items() if v is not None and v != "__CLEAR__"}
 
         # B5+C4: detect destination confirmation from conversation history — no Haiku needed.
         # Look for an assistant confirmation question followed by an affirmative user reply.
@@ -1111,13 +1121,19 @@ def extract_and_save_slots(session_id, history):
             except Exception as e:
                 print(f"travel_year computation error: {e}")
 
-        print(f"SLOT EXTRACTION FILTERED: {list(filtered.keys())}")
+        print(f"SLOT EXTRACTION FILTERED: {list(filtered.keys())} CLEARED: {list(cleared_slots)}")
 
-        if not filtered:
+        if not filtered and not cleared_slots:
             return
 
         old_profile = get_profile(session_id)
         merged = {**old_profile, **filtered}
+
+        # B3: apply __CLEAR__ corrections — set those slots to null in the merged profile
+        if cleared_slots:
+            for _slot in cleared_slots:
+                merged[_slot] = None
+                print(f"SLOT EXTRACTION: cleared {_slot} via __CLEAR__ sentinel")
 
         # Safety net: if an old/stale travel_year already on the profile is
         # now in the past relative to today, and the user hasn't restated a
