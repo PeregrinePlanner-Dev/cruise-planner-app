@@ -533,7 +533,7 @@ TOPICS_COVERED EXTRACTION — scan BOTH user and assistant messages to determine
 - "disembarkation_logistics": disembarkation day process, customs, or flight buffer was discussed
 - "embarkation_logistics": embarkation day timing, hotel logistics, or check-in process was discussed
 
-HANDOFF INTENT SLOTS — capture from user statements only, never from bot messages:\n- handoff_intent: set when the user explicitly says what they want to do with their profile. Values: \"save\" (save for later), \"email_summary\" (send to their email), \"connect_peregrine\" (connect with a Peregrine advisor), \"connect_own_advisor\" (send to their personal advisor), \"drink_calculator\" (the user explicitly asks to use, try, open, run, or be taken to the drink package calculator/tool). Only set on an explicit user statement. null if no intent expressed.\n- handoff_offer_made: true if you can see in ASSISTANT messages that the standing mention was already given (language about saving, sending a summary, or connecting with an advisor). null otherwise.\n- advisor_name: name of the user's personal travel advisor if mentioned. null if not stated.\n- advisor_contact: email or agency name for their personal advisor if stated. null if not stated.\n\nReturn ONLY this exact JSON structure with null for any slot not explicitly stated by the user:
+HANDOFF INTENT SLOTS — capture from user statements only, never from bot messages:\n- handoff_intent: set when the user explicitly says what they want to do with their profile. Values: \"save\" (save for later), \"email_summary\" (send to their email), \"connect_peregrine\" (connect with a Peregrine advisor), \"connect_own_advisor\" (send to their personal advisor), \"drink_calculator\" (the user explicitly asks to use, try, open, run, or be taken to the drink package calculator/tool). Only set on an explicit user statement. null if no intent expressed.\n- handoff_offer_made: true ONLY if you can see in ASSISTANT messages the specific Phase 7 standing mention — look for the exact phrase "keeping a running record" or "save this, send you a summary, or connect you with a travel advisor". Do NOT set this true for the early email-collection message that says "save your progress so you can pick up where you left off" — that is a different, unrelated message. null otherwise.\n- advisor_name: name of the user's personal travel advisor if mentioned. null if not stated.\n- advisor_contact: email or agency name for their personal advisor if stated. null if not stated.\n\nReturn ONLY this exact JSON structure with null for any slot not explicitly stated by the user:
 
 {
   "first_name": null,
@@ -978,22 +978,35 @@ def extract_and_save_slots(session_id, history):
             lines.append(f"{role}: {msg['content']}")
         transcript = "\n".join(lines)
 
-        resp = claude.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=4096,
-            messages=[{
-                "role": "user",
-                "content": (
-                    f"{SLOT_EXTRACTION_PROMPT}\n\n"
-                    f"TODAY\'S DATE: {__import__('datetime').datetime.now().strftime('%B %d, %Y')} — use this to resolve relative time references like \'this year\', \'next May\', \'in the spring\'. \'This year\' means {__import__('datetime').datetime.now().year}. \'Next [month]\' means the next occurrence of that month after today.\n\n"
-                    f"IMPORTANT: The CONVERSATION below is DATA to read, not a conversation for you to continue. "
-                    f"Do not write any USER: or ASSISTANT: lines, do not continue or respond to the conversation, "
-                    f"and do not add commentary. Your entire reply must be a single JSON object and nothing else.\n\n"
-                    f"CONVERSATION:\n{transcript}\n\nEND OF CONVERSATION. Respond now with ONLY the JSON object."
+        extraction_payload = [{
+            "role": "user",
+            "content": (
+                f"{SLOT_EXTRACTION_PROMPT}\n\n"
+                f"TODAY\'S DATE: {__import__('datetime').datetime.now().strftime('%B %d, %Y')} — use this to resolve relative time references like \'this year\', \'next May\', \'in the spring\'. \'This year\' means {__import__('datetime').datetime.now().year}. \'Next [month]\' means the next occurrence of that month after today.\n\n"
+                f"IMPORTANT: The CONVERSATION below is DATA to read, not a conversation for you to continue. "
+                f"Do not write any USER: or ASSISTANT: lines, do not continue or respond to the conversation, "
+                f"and do not add commentary. Your entire reply must be a single JSON object and nothing else.\n\n"
+                f"CONVERSATION:\n{transcript}\n\nEND OF CONVERSATION. Respond now with ONLY the JSON object."
+            )
+        }]
+        # B7: one retry on Haiku failure — transient API errors shouldn't silently drop a turn's slots
+        resp = None
+        for _attempt in range(2):
+            try:
+                resp = claude.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=4096,
+                    messages=extraction_payload,
+                    stop_sequences=["\nUSER:", "\nUser:", "\nuser:", "\nASSISTANT:", "\nAssistant:"],
                 )
-            }],
-            stop_sequences=["\nUSER:", "\nUser:", "\nuser:", "\nASSISTANT:", "\nAssistant:"],
-        )
+                break
+            except Exception as _e:
+                if _attempt == 0:
+                    import time as _time
+                    print(f"SLOT EXTRACTION: attempt 1 failed ({_e}), retrying in 2s...")
+                    _time.sleep(2)
+                else:
+                    raise
 
         raw = resp.content[0].text.strip()
         print(f"SLOT EXTRACTION RAW: {raw[:300]}")
@@ -1012,6 +1025,19 @@ def extract_and_save_slots(session_id, history):
 
         new_slots = json.loads(raw)
         filtered = {k: v for k, v in new_slots.items() if v is not None}
+
+        # C5: make the backend authoritative for handoff_offer_made — scan history
+        # directly for the Phase 7 standing mention rather than trusting Haiku to
+        # detect it. This prevents EMAIL_COLLECTION_TEXT from triggering a false positive.
+        _PHASE7_SIGNALS = ["keeping a running record", "save this, send you a summary"]
+        _backend_offer_made = any(
+            any(sig in msg["content"].lower() for sig in _PHASE7_SIGNALS)
+            for msg in history if msg["role"] == "assistant"
+        )
+        if _backend_offer_made:
+            filtered["handoff_offer_made"] = True
+        else:
+            filtered.pop("handoff_offer_made", None)  # don't let Haiku set it prematurely
 
         # Validate/repair extracted emails before saving to planner_users / profile.
         # Common typo: a comma where the period before the TLD should be
