@@ -873,14 +873,13 @@
       typingEl.style.display = "none";
       stopVoyage();
       appendMessage(data.response || "Sorry, something went wrong.", "bot");
-      refreshAlerts();
-      refreshIntel();
+      refreshPanels(['alerts', 'intel']);
       // Delay video and port card - they depend on destination slot which extracts in background
       setTimeout(refreshVideo, 1500);
-      setTimeout(refreshPortCard, 1500);
+      setTimeout(() => refreshPanels(['port']), 1500);
       // Delay profile refresh slightly so background slot-extraction finishes before we read the DB
       clearTimeout(_profileRefreshTimer);
-      _profileRefreshTimer = setTimeout(refreshProfileCard, 2500);
+      _profileRefreshTimer = setTimeout(() => refreshPanels(['profile']), 2500);
       // Show handoff action card when Adrian captures client intent
       if (data.handoff_action) {
         showHandoffCard(data.handoff_action, data.advisor_name || null);
@@ -977,11 +976,8 @@
   document.getElementById("start-over-btn").addEventListener("click", async () => {
     if (!confirm("Start a new conversation? Your current session will be cleared.")) return;
     await fetch("/api/chat/reset", { method: "POST" });
-    refreshProfileCard();
-    refreshAlerts();
-    refreshIntel();
+    refreshPanels(['profile', 'alerts', 'intel', 'port']);
     refreshVideo();
-    refreshPortCard();
     messagesEl.innerHTML = `
       <div class="message bot" id="opening-message">
         <div class="bubble" id="opening-bubble">
@@ -1070,11 +1066,8 @@
   function continueSession() {
     document.getElementById("opening-bubble").innerHTML =
       "Welcome back! Let's pick up where we left off. What would you like to talk about?";
-    refreshProfileCard();
-    refreshAlerts();
-    refreshIntel();
+    refreshPanels(['profile', 'alerts', 'intel', 'port']);
     refreshVideo();
-    refreshPortCard();
     inputEl.focus();
   }
 
@@ -1085,10 +1078,8 @@
     try { localStorage.removeItem("peregrine_queued_videos"); } catch(e) {}
     try { localStorage.removeItem("peregrine_video_interests"); } catch(e) {}
     try { localStorage.removeItem("peregrine_context_video"); } catch(e) {}
-    refreshAlerts();
-    refreshIntel();
+    refreshPanels(['alerts', 'intel', 'port']);
     refreshVideo();
-    refreshPortCard();
     inputEl.focus();
   }
 
@@ -1146,14 +1137,11 @@
         document.getElementById("opening-bubble").innerHTML =
           "Welcome back! I've got everything we covered — your profile is right where you left it. What would you like to add or change?";
       });
-      refreshProfileCard(); refreshAlerts(); refreshIntel(); refreshVideo(); refreshPortCard();
+      refreshPanels(['profile', 'alerts', 'intel', 'port']); refreshVideo();
       inputEl.focus();
     } else if (!returning) {
-      refreshProfileCard();
-      refreshAlerts();
-      refreshIntel();
+      refreshPanels(['profile', 'alerts', 'intel', 'port']);
       refreshVideo();
-      refreshPortCard();
     }
   });
 
@@ -1592,6 +1580,24 @@
       renderIntel(data.intel || []);
     } catch {
       // Non-fatal
+    }
+  }
+
+  // Consolidated fetch for profile/alerts/intel/port — added 2026-07-02 (K15).
+  // These four all derive from the same voyage_profiles row; this hits
+  // /api/panel-refresh once instead of once per panel. video is deliberately
+  // NOT part of this — it has its own extra Supabase query and matching
+  // logic, so it stays on its own refreshVideo() call as before.
+  async function refreshPanels(parts) {
+    try {
+      const res = await fetch("/api/panel-refresh?parts=" + parts.join(","));
+      const data = await res.json();
+      if (data.profile !== undefined) renderProfileCard(data.profile || {});
+      if (data.alerts  !== undefined) renderAlerts(data.alerts || []);
+      if (data.intel   !== undefined) renderIntel(data.intel || []);
+      if (data.port    !== undefined) renderPortCard(data.port);
+    } catch {
+      // Non-fatal — panels stay as-is, same failure behavior as the individual calls
     }
   }
 
