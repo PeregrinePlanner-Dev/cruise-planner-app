@@ -1770,6 +1770,7 @@ WHAT THIS MEANS IN PRACTICE — do not capture these common inference traps:
 - travel_experience_level: "we travel a lot" is not enough — what kind of travel? Only assign if the user described their travel background specifically.
 - drinking_profile: "my husband is reserved with drinks" means he drinks less, but "non_drinker" requires the user to say they don't drink at all.
 - budget_tier: NEVER assign until the user has given a number AND you know whether it is per person or total AND whether it is cruise-only or all-in. budget_tier is ALWAYS per-person. If the user gives a TOTAL figure for the party (e.g. "our last cruise cost about $10k" for a couple, or "$10k for the two of us"), DIVIDE by party_size before mapping to a tier — $10,000 total for 2 people = $5,000 per person = budget_4k_7k, NOT budget_7k_plus. Do not map a total-party figure directly onto the per-person tier ranges. If party_size is unknown when the budget is mentioned, use the most recent party size discussed in the conversation; if truly unknown, assume 2.
+- budget_all_in: whenever the user states any actual dollar figure for the trip, capture it here VERBATIM as free text alongside the derived budget_tier — do not let it get lost in the per-person bucketing. Write it exactly as they framed it, e.g. "$18,000 total for two, firm ceiling" or "$10k for the two of us, flexible." This exists specifically so a firm total ceiling isn't silently replaced by an open-ended top tier like "$7,500+ pp" that would misrepresent the client as having no upper limit — budget_tier and budget_all_in are shown together, never as a substitute for one another.
 - port_interests: ONLY capture what the user explicitly said they want to do in ports. NEVER capture activities the bot mentioned or suggested. If the bot says "Cozumel is great for diving and snorkeling" and the user did not respond confirming interest in those activities, port_interests is null. The user must say "I love diving" or "I want to snorkel" — not just travel to a destination the bot associated with those activities.
 - budget_flexibility: NEVER infer from price sensitivity language. "That's expensive" or "hotel nights add up" does NOT mean firm_ceiling. Only assign if the user explicitly described their budget flexibility.
 - value_psychology: NEVER infer from price concern language. Someone mentioning cost does not mean value_hunter. Only assign if the user explicitly described how they think about value vs. experience.
@@ -2414,6 +2415,23 @@ def extract_and_save_slots(session_id, history):
         }
         cleared_slots = {k for k, v in new_slots.items() if v == "__CLEAR__" and k in _CORRECTABLE}
         filtered = {k: v for k, v in new_slots.items() if v is not None and v != "__CLEAR__"}
+
+        # Hard-enforce "matching engine outputs only" for these two fields.
+        # SLOT_EXTRACTION_PROMPT tells Haiku to leave them null, but a prompt
+        # instruction isn't a guarantee -- on long/complex conversations Haiku
+        # has been observed to fill cruise_line_shortlist in anyway, usually as
+        # a plain list of line-name strings (e.g. ["Cunard", "Viking Ocean"])
+        # instead of the matching engine's list of dicts. That silently
+        # corrupts the field, and build_profile_summary()'s
+        # `r.get("name", r.get("slug", ""))` then crashes with
+        # AttributeError: 'str' object has no attribute 'get' the next time
+        # the conversation crosses HISTORY_FULL_TURNS and the profile summary
+        # gets built. Only maybe_run_matching() may ever write these two keys.
+        for _mengine_only in ("cruise_line_shortlist", "cruise_line_negative_signals"):
+            if _mengine_only in filtered:
+                print(f"SLOT EXTRACTION: dropping Haiku-supplied {_mengine_only!r} "
+                      f"(matching-engine-only field, ignoring instruction violation)")
+                filtered.pop(_mengine_only)
 
         # B5+C4: detect destination confirmation from conversation history — no Haiku needed.
         # Look for an assistant confirmation question followed by an affirmative user reply.
@@ -3614,6 +3632,14 @@ def video_route():
                 "baltic":    ("destinations/nyhavn-copenhagen.mp4",    "Baltic \u00b7 Northern Europe",   "your destination"),
                 "scandinav": ("destinations/nyhavn-copenhagen.mp4",    "Scandinavia",                "your destination"),
                 "nordic":    ("destinations/nyhavn-copenhagen.mp4",    "Northern Europe",            "your destination"),
+                # "northern europe" (the literal destination_region value Haiku
+                # extracts for exactly this kind of itinerary) doesn't contain
+                # "nordic"/"norway"/"fjord"/"scandinav" as a substring, so it
+                # fell through to no match at all (confirmed live 2026-07-02 --
+                # /api/video returned {"video":null} for a Norway/Iceland trip).
+                # "europe" and "iceland" close that gap onto the same video.
+                "northern europe": ("destinations/nyhavn-copenhagen.mp4", "Northern Europe",       "your destination"),
+                "iceland":   ("destinations/nyhavn-copenhagen.mp4",    "Iceland",                    "your destination"),
                 "mediterr":  ("destinations/santorini-greece.mp4",     "Mediterranean",              "your destination"),
                 "greece":    ("destinations/santorini-greece.mp4",     "Greece",                     "your destination"),
                 "italy":     ("destinations/venice-italy.mp4",         "Italy",                      "your destination"),
@@ -3723,8 +3749,15 @@ def build_profile_summary(profile):
         parts.append(f"Discounts: {profile['discount_flags']}")
     shortlist = profile.get("cruise_line_shortlist")
     if shortlist and isinstance(shortlist, list):
-        names = [r.get("name", r.get("slug", "")) for r in shortlist[:3]]
-        parts.append(f"Current shortlist: {', '.join(names)}")
+        # Defensive: this field should only ever contain dicts (written by
+        # maybe_run_matching()), but a live crash on 2026-07-02 proved Haiku
+        # can pollute it with plain strings despite being told not to. Skip
+        # non-dict entries instead of crashing -- AttributeError here took
+        # down /api/chat entirely for any session that crossed
+        # HISTORY_FULL_TURNS with a corrupted shortlist already saved.
+        names = [r.get("name", r.get("slug", "")) for r in shortlist[:3] if isinstance(r, dict)]
+        if names:
+            parts.append(f"Current shortlist: {', '.join(names)}")
     if profile.get("what_they_fear_wont_work"):
         parts.append(f"Key concern: {profile['what_they_fear_wont_work']}")
     if profile.get("what_would_make_it_perfect"):
