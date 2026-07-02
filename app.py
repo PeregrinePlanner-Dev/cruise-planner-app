@@ -15,9 +15,26 @@ import requests
 from datetime import datetime, timezone
 from flask import Flask, jsonify, request, render_template, session, send_from_directory, redirect
 from dotenv import load_dotenv
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 
 
 load_dotenv()
+
+# Sentry error tracking -- reports uncaught exceptions (like the K17 crash)
+# automatically instead of relying on someone noticing and pasting raw
+# console/log output into chat. traces_sample_rate=0.0 keeps this errors-only
+# (no performance tracing cost/volume) until we decide we want more.
+_sentry_dsn = os.environ.get("SENTRY_DSN")
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        integrations=[FlaskIntegration()],
+        traces_sample_rate=0.0,
+        send_default_pii=False,
+    )
+else:
+    print("SENTRY_DSN not set -- error tracking disabled. Set this env var on Render to enable.")
 
 app = Flask(__name__)
 _flask_secret = os.environ.get("FLASK_SECRET", "dev-secret-change-in-production")
