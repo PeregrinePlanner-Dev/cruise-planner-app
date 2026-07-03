@@ -2082,8 +2082,11 @@ def get_or_create_session():
     ]
 
     # Create session \u2014 no user_email yet (collected at turn 6+)
+    # Tokenized referral: stamp whatever ?ref= token index() saved to the
+    # cookie (None if the traveler never arrived via a referral link).
     sess_row = sb_post("planning_sessions", {
         "conversation_history": opening_history,
+        "referral_token": session.get("referral_token"),
     })
     session_id = sess_row["id"]
 
@@ -3047,6 +3050,13 @@ def build_intel(profile):
 
 @app.route("/")
 def index():
+    # Tokenized referral capture: ?ref=AGENT_TOKEN stamps the visit so it can be
+    # attributed at handoff. Stored in the signed session cookie (not the DB yet)
+    # because the planning_sessions row doesn't exist until the first /api/chat
+    # call — this lets the token survive if the traveler browses before chatting.
+    ref = request.args.get("ref")
+    if ref:
+        session["referral_token"] = ref.strip()[:100]
     return render_template("index.html")
 
 
@@ -4191,6 +4201,20 @@ def _alert_html(profile, advisor_alerts=None):
     return to_html(discussed), to_html(consideration), to_html(open_items)
 
 def _map_profile_to_email_ctx(session_id, profile, shortlist, eliminated, advisor_alerts, portrait, handoff_id):
+    # Tokenized referral: read back whatever was stamped on this session at
+    # creation (see get_or_create_session) so the advisor knows which link
+    # sent this traveler. None for organic/direct visits.
+    referral_token = None
+    try:
+        _sess_rows = sb_get("planning_sessions", {
+            "id": f"eq.{session_id}",
+            "select": "referral_token",
+        })
+        if _sess_rows:
+            referral_token = _sess_rows[0].get("referral_token")
+    except Exception as e:
+        print(f"_map_profile_to_email_ctx: referral_token lookup failed (non-fatal): {e}")
+
     now   = datetime.now().strftime("%B %d, %Y at %I:%M %p")
     first = profile.get("first_name") or ""
     last  = profile.get("last_name")  or ""
@@ -4394,6 +4418,7 @@ def _map_profile_to_email_ctx(session_id, profile, shortlist, eliminated, adviso
         "return_visit":          "",
         "conversation_duration": "",
         "handoff_id":            handoff_id,
+        "referral_token":        referral_token or "",
     }
 
 def _render_template(template_str, ctx):
