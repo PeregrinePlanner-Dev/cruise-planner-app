@@ -2676,6 +2676,7 @@ def build_alerts(profile):
             "type": "advisory",
             "headline": "Health context noted (advisor only)",
             "body": f"{profile['health_context']}. Advisor should review itinerary for medical facility access and confirm ship medical capabilities if relevant.",
+            "advisor_only": True,
         })
 
     if occasion == "empty_nest":
