@@ -1,0 +1,4 @@
+# Dev/test-only dependencies. NOT installed on Render -- keep separate from
+# requirements.txt so production deploys don't carry test tooling.
+# Install locally with: pip install -r requirements-dev.txt -r requirements.txt
+pytest
