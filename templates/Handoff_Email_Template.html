@@ -62,7 +62,6 @@
     return_visit              — e.g. "Returning — 2nd visit" or empty
     booking_status            — e.g. "Actively researching" / "Ready to book" / "Has existing booking"
     handoff_id                — e.g. "PRG-20260608-A4F7"
-    referral_token             — e.g. "cornerstone" (from ?ref= at session start; omit section if empty/direct traffic)
 
   BUDGET TIER → DISPLAY MAPPING:
     budget_under_2k   → "Under $2,000 per person"
@@ -356,7 +355,6 @@
                     Profile: <strong style="color:#ffffff;">{{completion_label}}</strong>
                     {{#if return_visit}}&nbsp;·&nbsp;<strong style="color:#A5C8E8;">{{return_visit}}</strong>{{/if}}
                     {{#if conversation_duration}}&nbsp;·&nbsp;<span style="color:#8BACC8;">{{conversation_duration}}</span>{{/if}}
-                    {{#if referral_token}}&nbsp;·&nbsp;<span style="color:#A5C8E8;">Via: {{referral_token}}</span>{{/if}}
                   </span>
                 </td>
                 <td align="right">
