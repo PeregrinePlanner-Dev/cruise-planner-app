@@ -2592,6 +2592,50 @@ def extract_and_save_slots(session_id, history):
         print(f"Slot extraction error: {e}")
 
 
+
+# ── Shared fact constants for build_alerts() / build_intel() ────────────────
+# Added 2026-07-03: several facts (gratuities, medical evacuation cost,
+# off-site parking savings, yellow fever card policy) were previously
+# hardcoded separately in both functions with inconsistent numbers. Defined
+# once here so alerts and intel never contradict each other, and so a future
+# verification pass only has one place to update per fact. See
+# ALERTS_INTEL_FACT_CHECK.md for the full audit list and verification status
+# of every alert/intel entry, not just these shared ones.
+
+# Verified 2026-07-03. Sources: Travel Market Report, gocruisetravel.com.
+# NOTE: Viking charges gratuities separately (was previously miscategorized
+# in intel as "included in fare" — corrected this pass).
+GRATUITY_RATES_BY_LINE_TEXT = (
+    "Carnival $17/day standard, $19/day suites (eff. Apr 2026); "
+    "Holland America $18/day standard, $20/day suites (eff. Jun 2026); "
+    "Norwegian $20/day standard; "
+    "Princess $18/day Interior/Oceanview/Balcony, $19/day Mini-Suite+ (eff. Mar 2026); "
+    "Disney $16/day standard, $27.25/day Concierge/suites; "
+    "Viking $17/day (discretionary hotel & dining charge, NOT included in fare)"
+)
+GRATUITY_INCLUDED_IN_FARE_TEXT = "Regent, Silversea, and Seabourn include gratuities in the fare"
+
+# Verified 2026-07-03. Sources: travelcareair.com, Allianz Travel, QuoteWright.
+MEDICAL_EVACUATION_COST_TEXT = (
+    "medical evacuation can run $25,000–$100,000+ out of pocket from the Caribbean or "
+    "Mediterranean, and can exceed $200,000 from remote/expedition destinations. "
+    "US health insurance provides little to no coverage abroad"
+)
+
+# Verified 2026-07-03. Figures consistent across sources checked.
+OFFSITE_PARKING_TEXT = "independent lots run $10–18/day vs. $20–35/day on-site — roughly 30–60% savings"
+
+# Verified 2026-07-03. Source: CDC Travelers' Health / ICVP program page.
+# Nuance added this pass: a few countries (Nigeria, Ecuador) now issue their
+# own digital certificates, but there is no universal digital standard yet —
+# a physical ICVP card remains the safe default for most international travel.
+YELLOW_FEVER_CARD_TEXT = (
+    "a physical ICVP yellow card is still required for most international travel — "
+    "a few countries have started issuing their own digital certificates, but none is "
+    "universally accepted yet, so the physical card remains the safe default"
+)
+
+
 def build_alerts(profile):
     """Generate advisor alert cards from profile flags."""
     alerts = []
@@ -2692,7 +2736,7 @@ def build_alerts(profile):
         alerts.append({
             "type": "critical",
             "headline": "No travel insurance — action needed",
-            "body": "Guest has no policy. Core risk: medical evacuation from international waters can run $50k–$100k+ out of pocket. US health insurance does not cover this abroad. Ensure insurance is purchased before sailing.",
+            "body": f"Guest has no policy. Core risk: {MEDICAL_EVACUATION_COST_TEXT}. Ensure insurance is purchased before sailing.",
         })
     elif insurance == "not_sure":
         alerts.append({
@@ -2734,14 +2778,14 @@ def build_alerts(profile):
         alerts.append({
             "type": "critical",
             "headline": "No passport — urgent for international sailing",
-            "body": "US State Department processing: 6–8 weeks standard, 2–3 weeks expedited. For any international sailing this is a hard blocker. Guest needs to act immediately.",
+            "body": "US State Department processing: 4–6 weeks standard, 2–3 weeks expedited (plus mailing time both ways — allow extra buffer). For any international sailing this is a hard blocker. Guest needs to act immediately.",
         })
 
     if profile.get("travel_documents") == "expiring_soon":
         alerts.append({
             "type": "critical",
             "headline": "Passport expiring — may not meet 6-month rule",
-            "body": "Most international destinations require a passport valid for at least 6 months beyond the return date. Confirm validity now. Renewal: 6–8 weeks standard, 2–3 weeks expedited.",
+            "body": "Most international destinations require a passport valid for at least 6 months beyond the return date. Confirm validity now. Renewal: 4–6 weeks standard, 2–3 weeks expedited (plus mailing time both ways).",
         })
 
     if profile.get("travel_documents") == "passport_card_only":
@@ -2772,7 +2816,7 @@ def build_alerts(profile):
         alerts.append({
             "type": "advisory",
             "headline": "Driving to port — confirm parking plan",
-            "body": "On-site port parking is convenient but expensive ($20–35/day). Off-site lots with shuttles save 30–60%. Stay-and-park hotel packages often beat both. Book early — all options fill at peak season.",
+            "body": f"On-site port parking is convenient but expensive. Off-site lots with shuttles save more — {OFFSITE_PARKING_TEXT}. Stay-and-park hotel packages often beat both. Book early — all options fill at peak season.",
         })
 
     # ── Seasickness concern ───────────────────────────────────────
@@ -2790,7 +2834,7 @@ def build_alerts(profile):
         alerts.append({
             "type": "advisory",
             "headline": "Expedition destination — travel health clinic recommended",
-            "body": "This itinerary may require yellow fever vaccination, malaria prophylaxis, or other destination-specific shots. Travel health clinic visit 6–8 weeks before departure. Yellow fever requires a physical ICVP yellow card — digital records not accepted.",
+            "body": f"This itinerary may require yellow fever vaccination, malaria prophylaxis, or other destination-specific shots. Travel health clinic visit 6–8 weeks before departure. Yellow fever: {YELLOW_FEVER_CARD_TEXT}.",
         })
 
     # ── Gratuities likely not in budget ──────────────────────────
@@ -2798,7 +2842,7 @@ def build_alerts(profile):
         alerts.append({
             "type": "advisory",
             "headline": "Confirm gratuities are in the budget",
-            "body": "Daily gratuities run $16–27 per person per day depending on line and cabin (e.g. Carnival $17, HAL $18–20, NCL $16–20, Princess $18–20, Disney $16 standard/$27.25 concierge, Viking $20). On a 7-night sailing for two: $224–380 not included in most advertised fares. Confirm the guest's budget accounts for this before recommending.",
+            "body": f"Daily gratuities vary by line and cabin: {GRATUITY_RATES_BY_LINE_TEXT}. On a 7-night sailing for two, this typically adds $220–390 not included in most advertised fares (more on lines that charge separately). {GRATUITY_INCLUDED_IN_FARE_TEXT}. Confirm the guest's budget accounts for this before recommending.",
         })
 
     # ── Nassau / Bahamas — State Dept jet ski warning (June 15, 2026) ─
@@ -2891,7 +2935,7 @@ def build_intel(profile):
         })
         intel.append({
             "headline": "Medical evacuation: the number that changes the conversation",
-            "body": "US health insurance provides little to no coverage abroad. A medical evacuation from the Caribbean or Mediterranean can cost $50,000 to $100,000. From expedition destinations it can exceed $200,000. Travel insurance with strong evacuation coverage is the protection that matters most.",
+            "body": f"{MEDICAL_EVACUATION_COST_TEXT[0].upper()}{MEDICAL_EVACUATION_COST_TEXT[1:]}. Travel insurance with strong evacuation coverage is the protection that matters most.",
         })
 
     # ── Pre-existing condition waiver intel ────────────────────────
@@ -2924,7 +2968,7 @@ def build_intel(profile):
         })
         intel.append({
             "headline": "Off-site port parking: 30–60% less than the pier",
-            "body": "Independent lots near major cruise ports run shuttles to the terminal and typically cost $10–18/day vs. $20–35 on-site. Book early — reputable operators fill up at peak season. Confirm shuttle hours align with embarkation and disembarkation times.",
+            "body": f"Independent lots near major cruise ports run shuttles to the terminal — {OFFSITE_PARKING_TEXT}. Book early — reputable operators fill up at peak season. Confirm shuttle hours align with embarkation and disembarkation times.",
         })
 
     # ── Caribbean specifics ────────────────────────────────────────
@@ -2980,12 +3024,12 @@ def build_intel(profile):
     if late_stage and "fly" in travel_mode and not _is_canadian:
         intel.append({
             "headline": "TSA PreCheck and Global Entry: worth having for cruise travelers",
-            "body": "TSA PreCheck ($85/5 years) removes the standard security line stress on embarkation day. Global Entry ($100/5 years) adds expedited customs on return — valuable for international sailings. Many premium travel cards (Amex Platinum, Chase Sapphire Reserve) reimburse the fee. Apply well ahead — Global Entry requires an in-person interview.",
+            "body": "TSA PreCheck ($78–85/5 years, depending on provider) removes the standard security line stress on embarkation day. Global Entry ($120/5 years) adds expedited customs on return — valuable for international sailings. Many premium travel cards (Amex Platinum, Chase Sapphire Reserve) reimburse the fee. Apply well ahead — Global Entry requires an in-person interview.",
         })
     elif late_stage and "fly" in travel_mode and _is_canadian:
         intel.append({
             "headline": "NEXUS: expedited entry for Canadian travelers — worth having",
-            "body": "NEXUS ($50) covers expedited entry into both Canada and the US, includes TSA PreCheck at US airports, and speeds up customs on return. For anyone flying through US airports or sailing from US ports, it's one of the best-value travel programs available. Requires an interview at a NEXUS enrollment center near the border — apply well in advance.",
+            "body": "NEXUS ($120, matching Global Entry's fee as of 2025) covers expedited entry into both Canada and the US, includes TSA PreCheck at US airports, and speeds up customs on return. For anyone flying through US airports or sailing from US ports, it's one of the best-value travel programs available. Requires an interview at a NEXUS enrollment center near the border — apply well in advance.",
         })
 
     # ── Passport card limitation intel ────────────────────────────
@@ -2999,7 +3043,7 @@ def build_intel(profile):
     if late_stage and not profile.get("budget_composition_awareness") and profile.get("budget_tier"):
         intel.append({
             "headline": "Gratuities: the line item most guests forget",
-            "body": "Cruise lines charge $16–25 per person per day in automatic gratuities (also called hotel charges or crew gratuities). On a 7-night sailing for two: $224–350 on top of the fare. Prepaying before sailing locks in the current rate and keeps the onboard account cleaner. Viking, Regent, Silversea, and Seabourn include gratuities in the fare.",
+            "body": f"Cruise lines charge daily automatic gratuities (also called hotel charges or crew gratuities): {GRATUITY_RATES_BY_LINE_TEXT}. On a 7-night sailing for two, this typically adds $220–390 on top of the fare. Prepaying before sailing locks in the current rate and keeps the onboard account cleaner. {GRATUITY_INCLUDED_IN_FARE_TEXT}.",
         })
 
     # ── Onboard credit mechanics ──────────────────────────────────
@@ -3033,7 +3077,7 @@ def build_intel(profile):
     if any(r in destination for r in ("antarctica", "amazon", "africa", "galapagos", "peru", "brazil")):
         intel.append({
             "headline": "Expedition destinations: travel health clinic 6–8 weeks out",
-            "body": "Certain destinations require yellow fever vaccination (physical ICVP yellow card required — digital not accepted), malaria prophylaxis, or other shots. A travel health clinic reviews the full itinerary and provides everything needed. Not a pharmacy visit — a dedicated clinic appointment.",
+            "body": f"Certain destinations require yellow fever vaccination ({YELLOW_FEVER_CARD_TEXT}), malaria prophylaxis, or other shots. A travel health clinic reviews the full itinerary and provides everything needed. Not a pharmacy visit — a dedicated clinic appointment.",
         })
 
     # ── Seasickness intel ────────────────────────────
