@@ -1203,14 +1203,16 @@ CASINO CULTURE ONBOARD:
 THE BASICS:
 Most mainstream cruise ships have a full casino with slot machines, table games (blackjack, roulette, craps, poker, baccarat), and poker rooms. Casinos open once the ship is in international waters — typically about an hour after leaving port. They close when the ship is in port in most jurisdictions (Hawaii being the strictest — NCL's Pride of America has no casino for this reason).
 
-CASINO PROGRAMS WORTH KNOWING:
-Royal Caribbean Casino Royale: one of the strongest casino loyalty programs afloat. High-volume players can earn free cruises, suite upgrades, and casino host services. The program actively courts gamblers with offers.
-Carnival: casino offers are common for past players — free or discounted cruises tied to casino play on previous sailings.
+CASINO PROGRAMS WORTH KNOWING (verified 2026-07-04 — royalcaribbeanblog.com/2026/04/25/royal-caribbean-casino-comp-cruise-change, royalcaribbean.com/experience/cruise-casinos/rewards, carnival.com/registration/promotions/casino, frequentmiler.com free-cruise-match-opportunities-still-exist-in-2026):
+Royal Caribbean's rewards program is called Club Royale — the onboard casino venue itself is separately branded "Casino Royale," so don't conflate the two names if a guest asks. Players earn points via their SeaPass card as they play. On the current sailing, reaching roughly 1,200–1,500 points earns a certificate for a complimentary future cruise; 2,500+ points essentially guarantees one and grants "Prime" tier for the rest of the casino year (which runs April 1–March 31). A 2026 program change now limits certificate holders to a curated list of sailings rather than the full range they could previously choose from.
+Carnival's version combines VIFP Club past-guest offers with the Players Club and its "Fun Match" feature — Fun Match lets a guest bring a loyalty card from another casino brand to unlock a comparable Carnival offer. Typical offers are a free or discounted cabin plus onboard FunPlay (casino) credit.
 Norwegian: The Local bar/casino complex on many ships is a social hub, not just a gambling space.
 Lines with minimal or no casinos: Viking (no casino by design — this is a deliberate brand choice), Disney (no casino — family-focused brand decision), some Regent and luxury line ships where the casino is small and understated.
 
+THE CAVEAT THAT MATTERS MOST: on both Royal Caribbean and Carnival, "free" cruise certificates cover the cabin fare (Club Royale: double occupancy plus some dining/entertainment) — but taxes, port fees, gratuities, and (for Carnival) fuel supplements are charged separately even when the fare itself shows as $0. These are rewards programs for real money already wagered, not a walk-up way to get a cheap cruise — a guest with no cruise-casino history isn't going to unlock one of these offers by playing a few hours on their first sailing.
+
 WHAT TO CAPTURE:
-casino_preference captures whether the casino is a priority. When it's important, factor it into line selection — Royal Caribbean and Carnival have the strongest casino programs. When the guest explicitly dislikes casinos or mentions smoke sensitivity, note that casinos are often the only remaining smoking area on many ships — the smoke can occasionally drift into adjacent spaces on some ship layouts.
+casino_preference captures whether the casino is a priority. When it's important, factor it into line selection — Royal Caribbean and Carnival have the strongest casino programs. When the guest explicitly dislikes casinos or mentions smoke sensitivity, note that casinos are often the only remaining smoking area on many ships — the smoke can occasionally drift into adjacent spaces on some ship layouts. If a guest raises casino play specifically as a strategy to get a cheaper cruise, be factual about the caveat above rather than encouraging it — this is also exactly when the app's casino safety alert (see build_alerts(), triggered on casino_preference) is meant to surface.
 
 PHOTOGRAPHY AND THE PHOTO PACKAGE:
 
@@ -2728,6 +2730,23 @@ def build_alerts(profile):
             "type": "opportunity",
             "headline": "Empty nest \u2014 adults-only lines now eligible",
             "body": "Kids are out of the picture for this trip. Adults-only lines (Virgin Voyages, Scenic, Seabourn, Silversea) and adults-only ships are now options worth surfacing.",
+        })
+
+    # -- Casino safety alert --
+    # Verified 2026-07-04: royalcaribbeanblog.com/2026/04/25/royal-caribbean-casino-comp-cruise-change,
+    # carnival.com/registration/promotions/casino, ncpgambling.org (helpline number confirmed current).
+    if profile.get("casino_preference") in ("important", "nice_to_have"):
+        alerts.append({
+            "type": "critical",
+            "headline": "Casino play uses real money — read before counting on a discount",
+            "body": (
+                "Programs like Club Royale and Carnival's Players Club can lead to free or discounted "
+                "cruises, but they're rewards for real money already wagered, not a guaranteed savings "
+                "strategy — taxes, port fees, and gratuities are charged separately even when the cabin "
+                "fare shows as $0. If gambling is a concern for you or anyone in your party, casino play "
+                "isn't a safe way to save on a cruise. Free, confidential help is available 24/7: National "
+                "Problem Gambling Helpline, 1-800-522-4700."
+            ),
         })
 
     # ── Insurance alerts ───────────────────────────────────────────
