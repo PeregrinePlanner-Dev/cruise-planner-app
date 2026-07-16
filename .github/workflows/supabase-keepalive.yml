@@ -17,7 +17,7 @@ jobs:
       - name: Read one row from cruise_lines (read-only, no writes)
         run: |
           STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
-            "https://mqtgwxmdauweiyrhewfs.supabase.co/rest/v1/cruise_lines?select=id&limit=1" \
+            "https://mqtgwxmdauweiyrhewfs.supabase.co/rest/v1/cruise_lines?select=cruise_line_id&limit=1" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
           echo "HTTP status: $STATUS"
