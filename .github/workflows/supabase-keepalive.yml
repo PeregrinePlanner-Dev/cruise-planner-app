@@ -1,0 +1,30 @@
+name: Supabase Keepalive
+
+# Pings the cruise-planner-dev Supabase project twice a week with a harmless
+# read-only query, so it never hits Supabase's 7-day free-tier inactivity
+# pause. Runs entirely on GitHub's servers -- works even if Rick's computer
+# is off, asleep, or the Peregrine app hasn't been opened in a while.
+
+on:
+  schedule:
+    - cron: '0 14 * * 1,4'   # Mon and Thu, 14:00 UTC (~10am ET / 7am PT)
+  workflow_dispatch: {}       # lets you trigger a manual test run from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read one row from cruise_lines (read-only, no writes)
+        run: |
+          STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            "https://mqtgwxmdauweiyrhewfs.supabase.co/rest/v1/cruise_lines?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+          echo "HTTP status: $STATUS"
+          cat /tmp/resp.json
+          if [ "$STATUS" -ge 400 ]; then
+            echo "Supabase ping failed with status $STATUS"
+            exit 1
+          fi
+        env:
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xdGd3eG1kYXV3ZWl5cmhld2ZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTI1ODgsImV4cCI6MjA5NTYyODU4OH0.NMsJlR8mdK2U1ZmvHl1qgivvUD6rb8fveZADKMi7FtA
