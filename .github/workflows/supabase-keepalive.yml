@@ -1,13 +1,13 @@
 name: Supabase Keepalive
 
-# Pings the cruise-planner-dev Supabase project twice a week with a harmless
+# Pings the cruise-planner-dev Supabase project daily with a harmless
 # read-only query, so it never hits Supabase's 7-day free-tier inactivity
 # pause. Runs entirely on GitHub's servers -- works even if Rick's computer
 # is off, asleep, or the Peregrine app hasn't been opened in a while.
 
 on:
   schedule:
-    - cron: '0 14 * * 1,4'   # Mon and Thu, 14:00 UTC (~10am ET / 7am PT)
+    - cron: '0 14 * * *'   # every day, 14:00 UTC (~10am ET / 7am PT)
   workflow_dispatch: {}       # lets you trigger a manual test run from the Actions tab
 
 jobs:
