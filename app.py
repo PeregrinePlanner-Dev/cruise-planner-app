@@ -3458,6 +3458,18 @@ def legal_page():
     return render_template("legal.html")
 
 
+@app.route("/advisors")
+def advisors_page():
+    """For Travel Advisors landing page with the advisor-access request form."""
+    return render_template("advisors.html")
+
+
+@app.route("/advisors-verify")
+def advisors_verify_page():
+    """Legacy/alternate entry point for the advisor page."""
+    return render_template("advisors.html")
+
+
 @app.route("/advisor-inquiry", methods=["POST"])
 def advisor_inquiry():
     """Receive advisor inquiry form, send notification email via Resend."""
