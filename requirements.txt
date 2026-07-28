@@ -4,3 +4,4 @@ python-dotenv
 anthropic
 gunicorn
 sentry-sdk[flask]
+flask-limiter

@@ -8,10 +8,13 @@ import os
 import re
 import random
 import json
+import html as _html_mod
 import threading
 import uuid as uuid_mod
 import anthropic
 import requests
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from datetime import datetime, timezone
 from flask import Flask, jsonify, request, render_template, session, send_from_directory, redirect
 from dotenv import load_dotenv
@@ -37,13 +40,39 @@ else:
     print("SENTRY_DSN not set -- error tracking disabled. Set this env var on Render to enable.")
 
 app = Flask(__name__)
-_flask_secret = os.environ.get("FLASK_SECRET", "dev-secret-change-in-production")
-if _flask_secret == "dev-secret-change-in-production":
-    import sys
-    print("CRITICAL: FLASK_SECRET is not set. Session cookies are insecure. Set this env var on Render immediately.", file=sys.stderr)
+_flask_secret = os.environ.get("FLASK_SECRET")
+if not _flask_secret:
+    import sys, secrets as _secrets_mod
+    # Fail SAFE, not open: no hardcoded fallback secret. A hardcoded literal
+    # here would let anyone who reads the source code forge signed session
+    # cookies for every user. Instead, generate a random secret for this
+    # process only -- existing sessions won't survive a restart (acceptable
+    # for local dev), but nobody can forge cookies since this value is never
+    # a known/predictable constant and isn't shared across processes.
+    _flask_secret = _secrets_mod.token_hex(32)
+    print(
+        "CRITICAL: FLASK_SECRET is not set. Using a random per-process secret "
+        "instead of a hardcoded fallback -- sessions will NOT survive a "
+        "restart/redeploy until this env var is set. Set FLASK_SECRET on "
+        "Render immediately.",
+        file=sys.stderr,
+    )
 app.secret_key = _flask_secret
 app.config["SESSION_COOKIE_SECURE"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# Rate limiting (security audit finding, 2026-07-28): /api/chat was previously
+# completely unthrottled despite calling paid Claude Sonnet on every request.
+# In-memory storage is fine here since Render runs this service as a single
+# gunicorn worker (WEB_CONCURRENCY=1) -- no shared/external store needed.
+# Limits are generous enough for one real engaged traveler conversation
+# (documented worst case ~40 exchanges) while stopping a scripted loop.
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri="memory://",
+    default_limits=[],
+)
 
 # ── Supabase ──────────────────────────────────────────────────────────────
 SUPABASE_URL   = os.environ.get("SUPABASE_URL")
@@ -4692,6 +4721,17 @@ def _map_profile_to_email_ctx(session_id, profile, shortlist, eliminated, adviso
         "referral_token":        referral_token or "",
     }
 
+def _esc(v):
+    """HTML-escape any value that may ultimately trace back to traveler-entered
+    text (profile slots are populated by Haiku extraction from freeform chat,
+    so they're untrusted input as far as HTML rendering is concerned) before
+    it's interpolated into a handoff page, client page, or advisor email.
+    Safe to call on already-safe values (numbers, None, etc.) too."""
+    if v is None:
+        return ""
+    return _html_mod.escape(str(v), quote=True)
+
+
 def _render_template(template_str, ctx):
     def replace_if(m):
         var, content = m.group(1).strip(), m.group(2)
@@ -4699,7 +4739,7 @@ def _render_template(template_str, ctx):
     result = re.sub(r'\{\{#if\s+(\w+)\}\}(.*?)\{\{/if\}\}', replace_if, template_str, flags=re.DOTALL)
     def replace_var(m):
         val = ctx.get(m.group(1).strip(), "")
-        return "" if val is None else str(val)
+        return _esc(val)
     return re.sub(r'\{\{(\w+)\}\}', replace_var, result)
 
 
@@ -4756,24 +4796,24 @@ def render_handoff_html(profile, shortlist, eliminated, advisor_alerts, portrait
     from datetime import datetime
     first = profile.get("first_name") or ""
     last  = profile.get("last_name")  or ""
-    name  = f"{first} {last}".strip() or "Unknown Client"
+    name  = _esc(f"{first} {last}".strip() or "Unknown Client")
     now   = datetime.now().strftime("%B %d, %Y at %I:%M %p")
     comp  = derive_completion_tier(profile)
     bud   = derive_budget_range(profile, shortlist)
-    act   = build_advisor_action_line(profile, shortlist)
+    act   = _esc(build_advisor_action_line(profile, shortlist))
     comp_color = {"Strong":"#16a34a","Good":"#2563eb","Partial":"#d97706"}[comp]
 
-    dest      = profile.get("destination_region") or "Not specified"
-    timeframe = " ".join(filter(None,[profile.get("travel_dates") or profile.get("travel_month"), str(profile.get("travel_year") or "")])).strip() or "Not specified"
-    duration  = profile.get("duration_preference") or "Not specified"
-    party_str = f"{profile.get('party_size','?')} \u2014 {profile.get('party_composition','')}"
+    dest      = _esc(profile.get("destination_region") or "Not specified")
+    timeframe = _esc(" ".join(filter(None,[profile.get("travel_dates") or profile.get("travel_month"), str(profile.get("travel_year") or "")])).strip() or "Not specified")
+    duration  = _esc(profile.get("duration_preference") or "Not specified")
+    party_str = f"{_esc(profile.get('party_size','?'))} \u2014 {_esc(profile.get('party_composition',''))}"
 
     trip_rows = "".join([
         f'<tr><td class="f">Destination</td><td>{dest}</td></tr>',
         f'<tr><td class="f">Timeframe</td><td>{timeframe}</td></tr>',
         f'<tr><td class="f">Duration</td><td>{duration}</td></tr>',
         f'<tr><td class="f">Party</td><td>{party_str}</td></tr>',
-        f'<tr><td class="f">Budget (derived)</td><td>{bud["per_person"]} pp \u2014 {bud["basis"]}</td></tr>',
+        f'<tr><td class="f">Budget (derived)</td><td>{_esc(bud["per_person"])} pp \u2014 {_esc(bud["basis"])}</td></tr>',
     ])
 
     EMDASH = "\u2014"
@@ -4782,7 +4822,7 @@ def render_handoff_html(profile, shortlist, eliminated, advisor_alerts, portrait
         rows_out = []
         for r in sl[:3]:
             drivers = "; ".join(r.get("reasons",[])[:2]) or EMDASH
-            rows_out.append(f'<tr><td class="ln">{r["name"]}</td><td class="sc">{r["score"]}</td><td>{drivers}</td></tr>')
+            rows_out.append(f'<tr><td class="ln">{_esc(r["name"])}</td><td class="sc">{_esc(r["score"])}</td><td>{_esc(drivers)}</td></tr>')
         return "".join(rows_out)
 
     must_haves, must_avoids = [], []
@@ -4805,16 +4845,16 @@ def render_handoff_html(profile, shortlist, eliminated, advisor_alerts, portrait
         must_avoids.append(f"{ex['name']} \u2014 {ex['reason']}")
 
     def flag_li(items, fb):
-        if not items: return f'<li class="n">{fb}</li>'
-        return "".join(f"<li>{i}</li>" for i in items[:4])
+        if not items: return f'<li class="n">{_esc(fb)}</li>'
+        return "".join(f"<li>{_esc(i)}</li>" for i in items[:4])
 
-    portrait_html = "".join(f"<p>{p.strip()}</p>" for p in portrait.split("\n\n") if p.strip()) if portrait else '<p class="n">[Portrait not generated]</p>'
-    alerts_html   = "".join(f'<div class="al">{a}</div>' for a in advisor_alerts) if advisor_alerts else '<div class="n">No alerts.</div>'
-    elim_rows     = "".join(f'<tr><td class="ln">{e["name"]}</td><td>{e["reason"]}</td></tr>' for e in eliminated) if eliminated else '<tr><td colspan="2" class="n">None eliminated.</td></tr>'
+    portrait_html = "".join(f"<p>{_esc(p.strip())}</p>" for p in portrait.split("\n\n") if p.strip()) if portrait else '<p class="n">[Portrait not generated]</p>'
+    alerts_html   = "".join(f'<div class="al">{_esc(a)}</div>' for a in advisor_alerts) if advisor_alerts else '<div class="n">No alerts.</div>'
+    elim_rows     = "".join(f'<tr><td class="ln">{_esc(e["name"])}</td><td>{_esc(e["reason"])}</td></tr>' for e in eliminated) if eliminated else '<tr><td colspan="2" class="n">None eliminated.</td></tr>'
 
     SKIP = {"cruise_line_shortlist","cruise_line_negative_signals","novice_education_flags","advisor_flags","_last_extracted_turn"}
     slot_rows = "".join(
-        f'<tr><td class="sk">{k}</td><td>{v if not isinstance(v,list) else ", ".join(str(x) for x in v)}</td></tr>'
+        f'<tr><td class="sk">{_esc(k)}</td><td>{_esc(v) if not isinstance(v,list) else _esc(", ".join(str(x) for x in v))}</td></tr>'
         for k,v in sorted(profile.items()) if k not in SKIP and v is not None
     ) or '<tr><td colspan="2" class="n">No slots collected.</td></tr>'
 
@@ -4984,10 +5024,10 @@ def render_advisor_page(rec, replies, outcome):
     # Activity log
     reply_log = ""
     for r in replies:
-        rt   = (r.get("reply_type") or "").replace("_", " ").title()
-        ts   = (r.get("reply_timestamp") or r.get("created_at") or "")[:16].replace("T", " ")
-        note = r.get("notes") or ""
-        code = r.get("booking_code") or ""
+        rt   = _esc((r.get("reply_type") or "").replace("_", " ").title())
+        ts   = _esc((r.get("reply_timestamp") or r.get("created_at") or "")[:16].replace("T", " "))
+        note = _esc(r.get("notes") or "")
+        code = _esc(r.get("booking_code") or "")
         reply_log += (
             f'<div class="rl-row">'
             f'<span class="rl-type">{rt}</span>'
@@ -5128,16 +5168,16 @@ def render_client_page(rec):
     profile      = rec.get("profile_snapshot") or {}
     portrait     = rec.get("portrait_text") or ""
     client_token = rec.get("client_token", "")
-    first        = profile.get("first_name") or "Your"
-    dest         = profile.get("destination_region") or "your cruise"
-    timeframe    = " ".join(filter(None, [
+    first        = _esc(profile.get("first_name") or "Your")
+    dest         = _esc(profile.get("destination_region") or "your cruise")
+    timeframe    = _esc(" ".join(filter(None, [
         profile.get("travel_dates") or profile.get("travel_month"),
         str(profile.get("travel_year") or ""),
-    ])).strip()
+    ])).strip())
     # Use only the client-facing narrative — never show the advisor portrait to the client
     narrative    = profile.get("generated_narrative") or ""
     narr_html    = "".join(
-        f"<p>{p.strip()}</p>"
+        f"<p>{_esc(p.strip())}</p>"
         for p in narrative.split("\n\n") if p.strip()
     ) or "<p>Your cruise profile is saved and your advisor has everything they need. Check back here as your plans take shape.</p>"
     _dur_labels = {
@@ -5148,8 +5188,8 @@ def render_client_page(rec):
         "extended_over_14": "14+ nights",
     }
     _dur_raw = profile.get("duration_preference") or ""
-    dur   = _dur_labels.get(_dur_raw) or (_dur_raw.replace("_", " ").title() if _dur_raw else "To be confirmed")
-    party = _enum_label(profile.get("party_composition"), PARTY_COMPOSITION_LABELS) or "Your group"
+    dur   = _esc(_dur_labels.get(_dur_raw) or (_dur_raw.replace("_", " ").title() if _dur_raw else "To be confirmed"))
+    party = _esc(_enum_label(profile.get("party_composition"), PARTY_COMPOSITION_LABELS) or "Your group")
     timeframe_display = f" &mdash; {timeframe}" if timeframe else ""
 
     # Extra "Trip at a Glance" rows — only real, captured profile data, no LLM.
@@ -5189,7 +5229,7 @@ def render_client_page(rec):
         extra_rows.append(("Excursions", _enum_label(profile.get("excursion_style"), EXCURSION_STYLE_LABELS)))
 
     extra_rows_html = "".join(
-        f"    <div class='trip-row'><span class='trip-label'>{label}</span><span class='trip-value'>{value}</span></div>\n"
+        f"    <div class='trip-row'><span class='trip-label'>{_esc(label)}</span><span class='trip-value'>{_esc(value)}</span></div>\n"
         for label, value in extra_rows
     )
 
@@ -5607,6 +5647,7 @@ def select_session():
 
 
 @app.route("/api/chat", methods=["POST"])
+@limiter.limit("10 per minute;60 per hour")
 def chat():
     data = request.get_json() or {}
     user_message = data.get("message", "").strip()
@@ -5843,9 +5884,38 @@ def chat_reset():
 
 @app.route("/dev/flush-sessions", methods=["POST"])
 def dev_flush_sessions():
+    """Destructive dev-only tool: wipes every row in voyage_profiles. Hardened
+    2026-07-28 (security audit finding) with three independent gates, since
+    the original version was a single non-constant-time string compare
+    against a static env secret guarding a delete filter that matches every
+    row -- a leaked/guessed key was a one-call full-table wipe with no
+    confirmation and no audit trail.
+    """
+    import secrets as _secrets_mod
+
+    # Gate 1: this route is disabled entirely unless explicitly turned on.
+    # Render production should simply never set ALLOW_DEV_FLUSH=true, so a
+    # leaked/guessed DEV_FLUSH_KEY alone can't do anything there.
+    if os.environ.get("ALLOW_DEV_FLUSH", "").lower() != "true":
+        return jsonify({"error": "Not found"}), 404
+
+    # Gate 2: constant-time key comparison (the original used `!=`, which
+    # leaks timing information about how many leading characters matched).
     dev_key = os.environ.get("DEV_FLUSH_KEY", "")
-    if not dev_key or request.headers.get("X-Dev-Key") != dev_key:
+    supplied_key = request.headers.get("X-Dev-Key", "")
+    if not dev_key or not _secrets_mod.compare_digest(supplied_key, dev_key):
         return jsonify({"error": "Unauthorized"}), 403
+
+    # Gate 3: the caller must also echo back an explicit confirmation phrase
+    # in the request body, so a bare correct header alone (e.g. replayed from
+    # a log or a compromised script) isn't sufficient on its own.
+    body = request.get_json(silent=True) or {}
+    if body.get("confirm") != "WIPE_ALL_VOYAGE_PROFILES":
+        return jsonify({
+            "error": 'Missing confirmation. POST {"confirm": "WIPE_ALL_VOYAGE_PROFILES"} to proceed.'
+        }), 400
+
+    print(f"dev_flush_sessions: FULL voyage_profiles wipe triggered from {request.remote_addr} at {now_iso()}")
     try:
         resp = requests.delete(
             f"{SUPABASE_URL}/rest/v1/voyage_profiles",
@@ -5858,7 +5928,7 @@ def dev_flush_sessions():
             timeout=10,
         )
         if resp.ok:
-
+            print(f"dev_flush_sessions: wipe completed, status {resp.status_code}")
             return jsonify({"deleted": True, "status": resp.status_code})
         return jsonify({"error": resp.text}), 500
     except Exception as e:
