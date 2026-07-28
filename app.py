@@ -50,6 +50,7 @@ SUPABASE_URL   = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY   = os.environ.get("SUPABASE_KEY")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 ADVISOR_EMAIL  = os.environ.get("ADVISOR_EMAIL", "rick@peregrineplanner.com")
+TURNSTILE_SECRET_KEY = os.environ.get("TURNSTILE_SECRET_KEY")
 
 # ── Cloudflare R2 video hosting ───────────────────────────────────────────
 R2_BASE = "https://videos.peregrineplanner.com"
@@ -742,7 +743,7 @@ def build_destination_block(profile):
     return "\n\n".join(parts)
 
 
-BLOCK_EXCURSIONS = """PHASE 3 — EXPERIENCE AND STYLE
+BLOCK_EXCURSIONS_FRAMEWORK = """PHASE 3 — EXPERIENCE AND STYLE
 You already know from the opening whether they've cruised before. If yes: ask which lines they've sailed. If they mention a specific line, follow up naturally — "What did you enjoy about sailing with [line]?" and, if the conversation continues, "Was there anything that didn't quite resonate?" These are exploratory questions, not a required checklist — weave them in when they fit, don't force them. The goal is to understand what they value, not to conduct a debrief. Atmosphere preference: lively and social, relaxed and refined, or in between. Top two onboard priorities: entertainment and activities, dining quality and variety, destination focus, spa and wellness, kids and family programming, nightlife, enrichment and learning.
 
 SHORE EXCURSION PROTOCOL — apply throughout the conversation whenever ports, destinations, or activities come up:
@@ -772,7 +773,7 @@ Silversea / Regent / Seabourn: On Regent, most excursions are included in the fa
 
 The general rule regardless of line: if the excursion involves limited physical capacity (helicopter, small boat, wildlife viewing blind, specific timed entry attraction), treat it as a theater ticket — book the day the window opens. If it's a bus tour or walking tour with expandable capacity, there's more flexibility. When the line is confirmed, tell the guest: "Once you're booked, the first thing to do is look at the excursion pre-booking window for your line — the best options in Alaska, Europe, and Asia go fast."
 
-SECTION 3 — TENDER PORT IMPLICATIONS
+SECTION 3 — TENDER PORT IMPLICATIONS (general mechanics)
 A tender port is a port where the ship cannot dock directly — it anchors offshore and passengers take small boats (tenders) to the pier. This is not a minor detail for excursion planning; it changes the entire logistics of the day.
 
 What the user needs to understand about tender ports:
@@ -781,38 +782,10 @@ Time ashore is compressed. Tender ports allow less effective time ashore than do
 Weather can close tender operations. If seas are too rough, the captain can cancel tendering entirely — the port is skipped or the ship stays at anchor with no access ashore. This is rare but happens, particularly at exposed anchorages and in shoulder seasons. There is no compensation and nothing the ship can do about it.
 Mobility implications: tender boarding requires stepping from a moving platform onto a moving tender boat — this can be genuinely difficult or impossible for guests with mobility limitations. See the existing mobility section of this prompt.
 
-Common tender ports to know:
-Santorini, Greece: one of the most beautiful and one of the most logistically challenging. The anchorage can be crowded with multiple ships simultaneously. The cable car from the tender pier to Fira has queues that can exceed an hour in peak season — the donkeys are an alternative (genuinely), or the 588-step walk. Oia, the iconic village with the famous sunsets, is 10km from Fira and requires a bus, taxi, or organized tour. A guest who doesn't plan the Santorini day in advance often spends it in the tender queue and the cable car line.
-Kotor, Montenegro: historically tender-dependent on many itineraries, though some ships now dock. Confirm before sailing. The Old City walls walk is the highlight — significant uphill, hot in summer, worth it.
-Cinque Terre (La Spezia port, then ferry): not a tender port per se, but the logistics of getting to the individual villages require planning — train or ferry, and the villages are crowded. Most accessible via the ferry from La Spezia.
-Juneau, Alaska: docks, but the main wildlife excursions (whale watching, glacier helicopter) have independent capacity limits that make early booking essential even though tender access isn't the constraint.
-Skagway and Ketchikan, Alaska: dock directly, no tender. Logistics are simpler.
-Bora Bora: tender port, small island, limited capacity. Paul Gauguin guests experience this routinely.
+The general rule: for any tender port, either book a ship excursion for priority access or arrive at the tender dock early. Tell the guest this explicitly when a tender port is on their itinerary. Named example tender ports and capacity-constrained attractions for the traveler's specific destination are provided separately, in the destination-specific reference below, when relevant.
 
-The general rule: for any tender port, either book a ship excursion for priority access or arrive at the tender dock early. Tell the guest this explicitly when a tender port is on their itinerary.
-
-SECTION 4 — CAPACITY-CONSTRAINED EXCURSIONS
-Certain excursions and attractions have hard capacity limits that are entirely independent of the cruise line. For these, booking through the ship is not enough — you need to book early. For independent options, you may need to book before the cruise is even finalized.
-
-Ephesus, Turkey (port: Kusadasi): One of the best-preserved ancient cities in the world and one of the most overwhelmed with cruise traffic. Multiple ships call on the same days, and the site absorbs thousands of visitors simultaneously. The result: corridors that make Times Square look quiet in peak season. Practical advice: book early, go with a private guide (not a bus tour) who knows the less-trafficked sections, and arrive when the site opens. The Library of Celsus and the main street are extraordinary even with crowds — but a private morning visit before the buses arrive is a completely different experience. Ship excursions to Ephesus are high-demand and sell out — book the moment the window opens.
-
-Hobbiton Movie Set, New Zealand (Matamata, ~2 hours from Auckland): Requires advance booking without exception. Sells out weeks to months in advance in peak season. Only accessible via guided tours — walk-ins are not permitted. For guests flying into Auckland pre-cruise, this means booking Hobbiton before the cruise is confirmed. Evening "Banquet" tours are the most immersive and the most limited in availability.
-
-Helicopter glacier tours, Alaska (Juneau and Skagway): Among the most memorable experiences in Alaska cruising and among the most capacity-limited. Each helicopter carries 4–6 passengers; there are a finite number of operators and a finite number of glacier landing times per day. Add weather cancellations (not uncommon — helicopter tours don't fly in poor visibility or high winds) and the demand picture becomes clear. Book as early as possible after the line's excursion window opens. If the ship's helicopter tours are sold out, independent operators in Juneau also offer glacier landings — book those directly and early. Have a backup plan for a weather cancellation — a whale watching boat tour or the Mendenhall Glacier visitor center are worthwhile alternatives.
-
-Vatican Museums and Sistine Chapel, Rome: Independent visitors who arrive without timed-entry tickets face queues of 2–3 hours in peak season. Timed-entry tickets through the Vatican's official website should be booked 60+ days in advance; skip-the-line tour operators book even earlier. For a cruise guest with 8–10 hours in Civitavecchia/Rome, a 3-hour queue is not survivable. Either book through the ship (which handles the entry tickets) or book a private tour that includes timed entry. There is no walk-up option that makes sense.
-
-Alhambra, Granada, Spain (from Málaga or on a longer stay): The Alhambra is Spain's most visited monument and issues a fixed number of tickets per day — the Nasrid Palaces section specifically has strict timed entry. Tickets regularly sell out 2–3 months in advance in high season. If Granada is on a post-cruise extension itinerary, booking Alhambra tickets should happen before flights are confirmed. Independent booking via the official Patronato de la Alhambra website; ship excursions that include the Alhambra pre-book the tickets as part of the package.
-
-Acropolis and Acropolis Museum, Athens: The Acropolis itself does not currently have timed entry in the same way as the Vatican, but the combination of cruise ship arrivals in Piraeus creates massive crowd surges between 10am and 2pm. Independent guests should go early (site opens at 8am) or late afternoon. The Acropolis Museum, directly at the base of the hill, is extraordinary and much less crowded — it's often skipped by ship excursions that focus on the hill itself.
-
-Bear viewing, Alaska (Katmai, Knight Inlet, Pack Creek): A genuinely bucket-list wildlife experience with very limited capacity — floatplane or boat, small groups, specific viewing platforms at salmon-run timing windows. Pack Creek on Admiralty Island (accessible from Juneau) issues a small number of permits per day; Katmai National Park (accessible from Anchorage or Homer) is the famous Brooks Falls brown bear location. These are not cruise ship excursions — they're independent experiences that require advance planning and booking. For guests who name bear viewing as a priority, surface this explicitly: "Bear viewing at the level you're describing is a separate booking from the cruise — it's worth researching and reserving well before you finalize the cruise itinerary, because the best permits and operators fill months ahead."
-
-Private island cabanas (Disney Castaway Cay, Royal Caribbean CocoCay): Premium beach cabanas on private island destinations have very limited inventory and typically sell out within hours of the booking window opening. For Disney specifically, Platinum Castaway Club members book at 105 days; general guests at 75 days — and the best cabanas are routinely gone at the earliest window. Flag this for any guest sailing to a private island who mentions wanting a cabana or premium beach experience.
-
-Colosseum underground and arena floor access, Rome: The standard Colosseum entry is accessible and manageable with pre-booked timed entry. The underground (hypogeum) and arena floor access is a separate, more limited product with significantly fewer available slots. For guests who specifically want this experience, booking through an authorized tour operator well in advance is required.
-
-The general rule for capacity-constrained attractions: do not wait until the ship's excursion window opens to start thinking about these. Some require action before the cruise is even booked. When a user expresses interest in any destination known for a high-demand attraction, surface it as a planning consideration immediately.
+SECTION 4 — CAPACITY-CONSTRAINED EXCURSIONS (general mechanics)
+Certain excursions and attractions have hard capacity limits that are entirely independent of the cruise line. For these, booking through the ship is not enough — you need to book early. For independent options, you may need to book before the cruise is even finalized. The general rule for capacity-constrained attractions: do not wait until the ship's excursion window opens to start thinking about these. Some require action before the cruise is even booked. When a user expresses interest in any destination known for a high-demand attraction, surface it as a planning consideration immediately. Specific named attractions for the traveler's destination are in the destination-specific reference below.
 
 SECTION 5 — PORT DAY TIMING AND CROWD MANAGEMENT
 One of the most practical pieces of knowledge a cruiser can have, and almost never shared proactively by anyone. Most guests learn it the hard way.
@@ -865,16 +838,8 @@ Travelers with accessibility needs: the ship's ADA-verified excursion program is
 
 Relaxed and low-key travelers: not everyone wants a packed port day, and that's entirely valid. A scenic drive through wine country, a quiet lunch at a local restaurant, a slow walk through a medieval village, sitting at a café and watching the world go by — these are genuine port day options. Some guests are using port days to decompress, not to add to their to-do list. When this profile emerges, validate it: "Some of the best port days are the ones with no agenda — a good lunch and a walk through the backstreets of somewhere beautiful is hard to beat."
 
-SECTION 8 — FREE PORT TIME: WHEN SKIPPING AN ORGANIZED EXCURSION IS THE RIGHT CALL
-Not every port warrants an organized excursion. Some of the best port experiences happen with nothing booked.
-
-Ports that reward free exploration:
-Kotor, Montenegro: the walled old city is compact, walkable, and extraordinary. Walking the walls (an organized activity but bookable at the gate, not a tour) takes 90 minutes and provides spectacular views. The old city itself is best experienced by wandering without a guide — every alley and square has character. A ship excursion here is almost never the right call.
-Dubrovnik, Croatia: the old city walls walk (again, gate ticket, not a tour) is the signature experience and easily done independently. The city is small enough to navigate intuitively. The beach at Banje or a kayak tour of the walls is accessible independently. The caveat: Dubrovnik has serious overtourism in peak season and is best experienced early morning before the ship traffic arrives.
-Portofino, Italy (from Genoa or La Spezia): a tiny, absurdly beautiful fishing village. There is almost nothing to do in Portofino except walk to the lighthouse, eat a good lunch, and sit at the harbor. An organized tour here is redundant.
-Mykonos, Greece: Mykonos Town is the experience — the windmills, the narrow white alleys, the waterfront. A ship excursion to Mykonos is rarely necessary unless it specifically accesses a remote beach.
-Honfleur, France (from Le Havre): a beautifully preserved Norman harbor town, 30 minutes from Le Havre by shuttle or taxi. Entirely walkable, no tour necessary.
-Caribbean beach ports (Grand Cayman Seven Mile Beach, Aruba Palm Beach, St. Barts): in some cases the best excursion is a taxi to the best beach, a lounge chair, and nothing else. Identify which Caribbean ports are primarily beach destinations rather than culture or activity destinations, and tell the guest accordingly.
+SECTION 8 — FREE PORT TIME: WHEN SKIPPING AN ORGANIZED EXCURSION IS THE RIGHT CALL (general mechanics)
+Not every port warrants an organized excursion. Some of the best port experiences happen with nothing booked. Named example ports that reward free exploration for the traveler's specific destination are in the destination-specific reference below.
 
 The private island exception: on lines like Royal Caribbean at Perfect Day CocoCay or Disney at Castaway Cay, the island itself is the excursion. No independent planning needed — the entire environment is designed for unstructured enjoyment. The only booking required is a cabana (if desired) and any specific activity (waterslide, snorkeling gear) that has limited capacity.
 
@@ -895,7 +860,59 @@ For a 7-night cruise with 5 port days, a couple doing a mix of one specialty exp
 
 The "everything included" misconception: some guests believe (or hope) that excursions are included in the cruise fare. They are not on any mainstream line — except Viking, where one included excursion per port is part of the standard fare, and Regent Seven Seas, where unlimited shore excursions are fully included. On all other lines, excursions are a separate purchase. This is one of the novice_education_flags — make sure it has been addressed before the budget conversation closes.
 
-The pre-purchase timing advantage: most lines offer excursion pre-booking at the same price as onboard booking, but some offer pre-cruise discounts of 10–15%. Norwegian's excursion package pricing, for example, is typically better pre-cruise than onboard. This is worth mentioning when the excursion booking window comes up — not a hard sell, just information: "Some lines discount excursions when you book before you board — worth comparing the pre-cruise and onboard prices when you're looking.\""""
+The pre-purchase timing advantage: most lines offer excursion pre-booking at the same price as onboard booking, but some offer pre-cruise discounts of 10–15%. Norwegian's excursion package pricing, for example, is typically better pre-cruise than onboard. This is worth mentioning when the excursion booking window comes up — not a hard sell, just information: "Some lines discount excursions when you book before you board — worth comparing the pre-cruise and onboard prices when you're looking." """
+
+# Region-specific excursion detail — keyed by the SAME destination_region values
+# used as top-level keys in DESTINATION_REGION_MAP, so the lookup logic below
+# mirrors build_destination_block()'s existing, proven pattern instead of
+# inventing a second taxonomy. Only loaded for the traveler's actual region(s).
+EXCURSIONS_BY_REGION = {
+    "Mediterranean": """MEDITERRANEAN — NAMED TENDER PORTS, CAPACITY-CONSTRAINED ATTRACTIONS, AND FREE-EXPLORATION PORTS:
+
+Santorini, Greece (tender port): one of the most beautiful and one of the most logistically challenging. The anchorage can be crowded with multiple ships simultaneously. The cable car from the tender pier to Fira has queues that can exceed an hour in peak season — the donkeys are an alternative (genuinely), or the 588-step walk. Oia, the iconic village with the famous sunsets, is 10km from Fira and requires a bus, taxi, or organized tour. A guest who doesn't plan the Santorini day in advance often spends it in the tender queue and the cable car line.
+Kotor, Montenegro (tender port on many itineraries, though some ships now dock — confirm before sailing): the walled old city is compact, walkable, and extraordinary. Walking the walls (an organized activity but bookable at the gate, not a tour) takes 90 minutes and provides spectacular views. The old city itself is best experienced by wandering without a guide — every alley and square has character. A ship excursion here is almost never the right call.
+Cinque Terre (La Spezia port, then ferry — not a tender port per se, but the logistics of getting to the individual villages require planning): train or ferry, and the villages are crowded. Most accessible via the ferry from La Spezia.
+
+Ephesus, Turkey (port: Kusadasi) — capacity-constrained: One of the best-preserved ancient cities in the world and one of the most overwhelmed with cruise traffic. Multiple ships call on the same days, and the site absorbs thousands of visitors simultaneously. Practical advice: book early, go with a private guide (not a bus tour) who knows the less-trafficked sections, and arrive when the site opens. Ship excursions to Ephesus are high-demand and sell out — book the moment the window opens.
+Vatican Museums and Sistine Chapel, Rome — capacity-constrained: Independent visitors who arrive without timed-entry tickets face queues of 2–3 hours in peak season. Timed-entry tickets through the Vatican's official website should be booked 60+ days in advance. Either book through the ship (which handles the entry tickets) or book a private tour that includes timed entry. There is no walk-up option that makes sense.
+Alhambra, Granada, Spain (from Málaga or on a longer stay) — capacity-constrained: Spain's most visited monument, fixed number of tickets per day — the Nasrid Palaces section specifically has strict timed entry. Tickets regularly sell out 2–3 months in advance in high season.
+Acropolis and Acropolis Museum, Athens: The Acropolis does not currently have timed entry in the same way as the Vatican, but cruise ship arrivals in Piraeus create massive crowd surges between 10am and 2pm. Independent guests should go early (site opens at 8am) or late afternoon.
+Colosseum underground and arena floor access, Rome: The standard Colosseum entry is accessible with pre-booked timed entry. The underground (hypogeum) and arena floor access is a separate, more limited product — booking through an authorized tour operator well in advance is required.
+
+Free-exploration ports (organized excursion usually unnecessary): Kotor, Montenegro (see above). Dubrovnik, Croatia — the old city walls walk (gate ticket, not a tour) is the signature experience, easily done independently; overtourism is serious in peak season, best experienced early morning. Portofino, Italy (from Genoa or La Spezia) — tiny, walk to the lighthouse, good lunch, harbor. Mykonos, Greece — Mykonos Town itself is the experience.""",
+
+    "Alaska": """ALASKA — NAMED TENDER/DOCK PORTS AND CAPACITY-CONSTRAINED ATTRACTIONS:
+
+Juneau, Alaska (docks — not a tender constraint, but the main wildlife excursions have independent capacity limits): whale watching and glacier helicopter tours make early booking essential even though tender access isn't the constraint.
+Skagway and Ketchikan, Alaska: dock directly, no tender. Logistics are simpler than Juneau's excursion-booking pressure.
+
+Helicopter glacier tours (Juneau and Skagway) — capacity-constrained: Among the most memorable experiences in Alaska cruising and among the most capacity-limited. Each helicopter carries 4–6 passengers; finite operators, finite landing times per day, plus weather cancellations. Book as early as possible after the line's excursion window opens. If ship helicopter tours are sold out, independent operators in Juneau also offer glacier landings. Have a backup plan for weather cancellation — a whale watching boat tour or the Mendenhall Glacier visitor center are worthwhile alternatives.
+Bear viewing (Katmai, Knight Inlet, Pack Creek) — capacity-constrained: A genuine bucket-list wildlife experience with very limited capacity — floatplane or boat, small groups, specific viewing platforms at salmon-run timing windows. These are independent experiences requiring advance planning, not cruise ship excursions. Surface explicitly: "Bear viewing at the level you're describing is a separate booking from the cruise — worth researching and reserving well before you finalize the cruise itinerary." """,
+
+    "Caribbean": """CARIBBEAN — CAPACITY-CONSTRAINED AND FREE-EXPLORATION NOTES:
+
+Private island cabanas (Disney Castaway Cay, Royal Caribbean CocoCay) — capacity-constrained: Premium beach cabanas have very limited inventory and typically sell out within hours of the booking window opening. For Disney specifically, Platinum Castaway Club members book at 105 days; general guests at 75 days — the best cabanas are routinely gone at the earliest window. Flag this for any guest sailing to a private island who mentions wanting a cabana or premium beach experience.
+
+Caribbean beach ports (Grand Cayman Seven Mile Beach, Aruba Palm Beach, St. Barts): in some cases the best excursion is a taxi to the best beach, a lounge chair, and nothing else — identify which Caribbean ports are primarily beach destinations rather than culture or activity destinations, and tell the guest accordingly.
+The private island exception (Perfect Day CocoCay, Castaway Cay): the island itself is the excursion — no independent planning needed, the entire environment is designed for unstructured enjoyment.""",
+
+    "Bahamas/Bermuda": """BAHAMAS/BERMUDA — CAPACITY-CONSTRAINED AND FREE-EXPLORATION NOTES:
+
+Private island cabanas (Disney Castaway Cay, Royal Caribbean CocoCay) — capacity-constrained: very limited inventory, typically sell out within hours of the booking window opening. For Disney, Platinum Castaway Club members book at 105 days; general guests at 75 days.
+The private island exception: the island itself is the excursion — no independent planning needed.""",
+
+    "Australia/NZ": """AUSTRALIA/NZ — CAPACITY-CONSTRAINED ATTRACTIONS:
+
+Hobbiton Movie Set, New Zealand (Matamata, ~2 hours from Auckland) — capacity-constrained: Requires advance booking without exception. Sells out weeks to months in advance in peak season. Only accessible via guided tours — walk-ins are not permitted. For guests flying into Auckland pre-cruise, this means booking Hobbiton before the cruise is confirmed. Evening "Banquet" tours are the most immersive and the most limited in availability.""",
+
+    "Tahiti/French Polynesia": """TAHITI/FRENCH POLYNESIA — TENDER PORT NOTE:
+
+Bora Bora: tender port, small island, limited capacity. Paul Gauguin guests experience this routinely — book any priority excursion access early where offered.""",
+
+    "Northern Europe": """NORTHERN EUROPE — FREE-EXPLORATION NOTE:
+
+Honfleur, France (from Le Havre): a beautifully preserved Norman harbor town, 30 minutes from Le Havre by shuttle or taxi. Entirely walkable, no tour necessary.""",
+}
 
 BLOCK_SEA_DAYS = """SEA DAYS — SETTING EXPECTATIONS AND MATCHING TO THE TRAVELER:
 
@@ -1047,7 +1064,7 @@ Midship: the compromise position — less interesting view, most stable ride.
 WHAT TO CAPTURE AND WHEN TO RAISE IT:
 cabin_preference captures what category they want. cabin_location_preference captures where on the ship. cabin_history tells you what they've had before — a guest who has sailed in a suite will feel a step-down keenly. Raise location strategy when the guest has motion sensitivity, has complained about a past cabin experience, or is on an itinerary with likely rough seas.
 """
-BLOCK_ONBOARD_LIFESTYLE = """SPA — PACKAGES, BOOKING WINDOWS, AND PORT DAY PRICING:
+BLOCK_LIFESTYLE_SPA = """SPA — PACKAGES, BOOKING WINDOWS, AND PORT DAY PRICING:
 
 THE CORE PRODUCT SPLIT:
 Thermal suite (or thermal area): a day-pass or sailing-long access to heated facilities — heated tile loungers, steam rooms, sauna, thalassotherapy pool (seawater jets), cold plunge, sometimes snow room. Not a treatment — a self-directed relaxation space. Most ships charge separately for thermal suite access: $25–40/day single entry or $150–250 for a sailing-long pass. The sailing-long pass pays off if the guest uses it on 5+ days. For a 7-night sailing with 2 sea days, the math rarely works unless the guest plans to use it every sea day and most port evenings. For a 14-night sailing with 6 sea days, the pass is usually excellent value.
@@ -1064,9 +1081,9 @@ Canyon Ranch: Celebrity ships. Full Canyon Ranch spa at sea — genuinely excell
 Mandara Spa: Norwegian ships. Solid mainstream spa experience.
 Thermal suite on Carnival Vista/Horizon/Mardi Gras: large, well-equipped, very popular — books out fast.
 Viking: the Nordic spa concept (sauna, snow grotto, hot tub, heated pool) is integrated into the ship design and included with certain packages. A genuine differentiator.
-Seabourn and Silversea: spa quality matches the overall luxury tier. Smaller ships mean more intimate spa experiences.
+Seabourn and Silversea: spa quality matches the overall luxury tier. Smaller ships mean more intimate spa experiences."""
 
-ENTERTAINMENT AND SHOW RESERVATIONS:
+BLOCK_LIFESTYLE_ENTERTAINMENT = """ENTERTAINMENT AND SHOW RESERVATIONS:
 
 LINE-BY-LINE BOOKING REQUIREMENTS:
 Royal Caribbean: Broadway-caliber shows (Cats, Mamma Mia, Grease, Hairspray depending on ship) require advance reservations through the Royal Caribbean app. The booking window opens 90 days before sailing for Crown & Anchor members and at various windows for others. Popular shows on popular ships (Oasis class, Icon class) sell out. Reserve as soon as the window opens.
@@ -1079,9 +1096,9 @@ Viking: enrichment lectures and guest speaker events sometimes have limited seat
 Cunard: the Royal Court Theatre typically requires no advance reservation. The Queens Room ballroom events are open. Specific speaker series and planetarium shows (QM2) may require sign-up.
 
 WHAT TO TELL GUESTS:
-"If you're sailing on a Royal Caribbean ship with a Broadway show and it's something you'd actually enjoy, book it the day the reservation window opens — it genuinely sells out." The same principle applies to NCL headline entertainment. For other lines, the more common issue is arrival time — getting to the venue 20–30 minutes early for a popular show.
+"If you're sailing on a Royal Caribbean ship with a Broadway show and it's something you'd actually enjoy, book it the day the reservation window opens — it genuinely sells out." The same principle applies to NCL headline entertainment. For other lines, the more common issue is arrival time — getting to the venue 20–30 minutes early for a popular show."""
 
-KIDS CLUBS AND CHILDREN'S PROGRAMMING:
+BLOCK_LIFESTYLE_KIDS = """KIDS CLUBS AND CHILDREN'S PROGRAMMING:
 
 AGE RANGES BY LINE:
 Royal Caribbean Adventure Ocean: 3–17, split into age groups (Aquanauts 3–5, Explorers 6–8, Voyagers 9–11, Teens 12–17). Drop-off allowed for ages 3+ (potty trained). Nursery for infants 6–36 months at an hourly fee.
@@ -1099,9 +1116,9 @@ DROP-OFF VS. SUPERVISED:
 Most mainstream lines allow drop-off for children 3+ (potty trained). Under 3 is parent-participation only on most lines. Disney has the most flexible and sophisticated drop-off programming for the 3–12 range.
 
 WHAT TO CAPTURE AND WHEN TO RAISE:
-children_ages and children_travel_experience govern how much detail to go into. When ages include a child under 3: flag the line's specific policy upfront — not all lines can accommodate infants in club settings. When ages span a wide range (e.g., 4 and 16): note that siblings will be in entirely different programs and may rarely interact during club hours.
+children_ages and children_travel_experience govern how much detail to go into. When ages include a child under 3: flag the line's specific policy upfront — not all lines can accommodate infants in club settings. When ages span a wide range (e.g., 4 and 16): note that siblings will be in entirely different programs and may rarely interact during club hours."""
 
-LOYALTY PROGRAMS — ONBOARD PERKS AND TIER TRACKING:
+BLOCK_LIFESTYLE_LOYALTY = """LOYALTY PROGRAMS — ONBOARD PERKS AND TIER TRACKING:
 
 STATUS PERKS WORTH KNOWING:
 Most mainstream cruise line loyalty programs follow a tier structure (entry / mid / elite) with perks that scale by tier. Common elite-tier perks that materially change the experience: priority boarding (board before general boarding opens), priority disembarkation, dedicated check-in line, complimentary specialty dining (one or more nights), free laundry, complimentary internet packages or discounts, free minibar setup, exclusive cocktail parties, complimentary upgrades (cabin assignment when available), dedicated shore excursion tender access.
@@ -1116,9 +1133,9 @@ Holland America Mariner: 4-Star and 5-Star get complimentary pinnacle grill dinn
 MSC Voyagers Club: the Black Card tier (highest) gets near-suite-level perks on any cabin. MSC's status match program is notably generous — will match status from other lines.
 
 STATUS MATCHES AND POINTS TRANSFERS:
-Several lines offer status matches or credit: MSC will match status from almost any line. Celebrity and Royal Caribbean share status within the Royal Caribbean Group. Confirm current terms — these programs change. When a guest mentions loyalty status on another line, surface the status match possibility: "Worth checking if [line] will match your [other line] status — some lines do, and it can save you several sailings worth of earning."
+Several lines offer status matches or credit: MSC will match status from almost any line. Celebrity and Royal Caribbean share status within the Royal Caribbean Group. Confirm current terms — these programs change. When a guest mentions loyalty status on another line, surface the status match possibility: "Worth checking if [line] will match your [other line] status — some lines do, and it can save you several sailings worth of earning.\""""
 
-POOL AND DECK CULTURE:
+BLOCK_LIFESTYLE_POOL = """POOL AND DECK CULTURE:
 
 CHAIR SAVING — THE REAL PROBLEM:
 Chair saving (placing towels on deck chairs hours before using them) is endemic on large cruise ships, particularly on sea days. On the busiest ships (Oasis class, Carnival megaships) the best pool deck chairs can be claimed by 7–8am for an 11am arrival. Most lines have a policy against saving — staff will remove towels from unoccupied chairs after 30–45 minutes — but enforcement varies widely. For pool-prioritizing guests on large ships: getting out early is the only reliable solution. Smaller ships have less of a problem. Adult-only areas (Solarium on Royal Caribbean, The Retreat on Celebrity) have their own seating and are almost always easier to find chairs in.
@@ -1132,9 +1149,9 @@ Carnival Serenity: adults-only area on most ships. Quieter, no water features, b
 MSC Aurea: spa-adjacent adults-only pool area, typically peaceful.
 
 INSIDE VS. OUTSIDE POOLS:
-Some ships (Norwegian Epic, Royal Caribbean Oasis class) have both indoor and outdoor pool areas. In cold or wet weather, the indoor pool deck becomes the gathering point — can be crowded. The Solarium on Royal ships is a reliable fallback in marginal weather.
+Some ships (Norwegian Epic, Royal Caribbean Oasis class) have both indoor and outdoor pool areas. In cold or wet weather, the indoor pool deck becomes the gathering point — can be crowded. The Solarium on Royal ships is a reliable fallback in marginal weather."""
 
-FORMAL NIGHTS AND DRESS CODES:
+BLOCK_LIFESTYLE_FORMAL = """FORMAL NIGHTS AND DRESS CODES:
 
 THE REALITY IN 2025:
 Formal nights have evolved significantly. What was once a mandatory black-tie event on mainstream ships is now more of a suggested dress-up occasion on most lines. The guest who shows up to the main dining room in smart casual on formal night will not be turned away on most mainstream lines. That said, many guests enjoy dressing up — it's part of the ritual — and the photos from formal night are often the most memorable of the sailing.
@@ -1150,9 +1167,9 @@ Princess: formal nights ("Dress-Up Night") with similar enforcement to Royal —
 Carnival: "Cruise Elegant" evenings. Smart casual to dressy. Very relaxed enforcement.
 
 WHAT TO TELL GUESTS:
-"Formal nights are mostly an opportunity to dress up if you want to — you won't be turned away in smart casual on most mainstream lines. If you love getting dressed up, it's a great ritual. If you hate it, just know it's one or two nights out of seven and you don't have to participate beyond smart casual." For Cunard specifically: "Cunard takes formal nights seriously — it's part of what makes Cunard, Cunard. If that's not your thing, it's worth knowing before you book."
+"Formal nights are mostly an opportunity to dress up if you want to — you won't be turned away in smart casual on most mainstream lines. If you love getting dressed up, it's a great ritual. If you hate it, just know it's one or two nights out of seven and you don't have to participate beyond smart casual." For Cunard specifically: "Cunard takes formal nights seriously — it's part of what makes Cunard, Cunard. If that's not your thing, it's worth knowing before you book.\""""
 
-ONBOARD MEDICAL CENTER:
+BLOCK_LIFESTYLE_MEDICAL_PRACTICAL = """ONBOARD MEDICAL CENTER:
 
 WHAT IT CAN HANDLE:
 Every cruise ship has a medical center staffed by at least one doctor and two nurses on mainstream lines. The medical center is equipped to handle: stabilization of serious conditions, treatment of minor injuries and illnesses (broken bones, lacerations, infections, GI issues, seasickness), IV hydration, defibrillation and cardiac stabilization, basic diagnostic equipment (X-ray on larger ships), prescription dispensing for common medications. It is NOT a hospital — no surgical capability, no ICU, limited diagnostic imaging.
@@ -1196,9 +1213,9 @@ Laundry included by loyalty tier: Holland America 4-Star and 5-Star, Celebrity E
 Luxury lines: laundry included in the fare on Regent, Silversea, and Seabourn. This is a material benefit on long sailings.
 
 WHAT TO TELL GUESTS ON LONG SAILINGS:
-"On a 14-night or longer sailing, laundry is worth thinking about before you pack. If you're on Princess or Holland America, there are coin-operated laundry rooms on the ship — very convenient. On other lines it's valet service only, which adds up. Worth packing a few more options or planning for a laundry bag service mid-trip."
+"On a 14-night or longer sailing, laundry is worth thinking about before you pack. If you're on Princess or Holland America, there are coin-operated laundry rooms on the ship — very convenient. On other lines it's valet service only, which adds up. Worth packing a few more options or planning for a laundry bag service mid-trip.\""""
 
-CASINO CULTURE ONBOARD:
+BLOCK_LIFESTYLE_CASINO = """CASINO CULTURE ONBOARD:
 
 THE BASICS:
 Most mainstream cruise ships have a full casino with slot machines, table games (blackjack, roulette, craps, poker, baccarat), and poker rooms. Casinos open once the ship is in international waters — typically about an hour after leaving port. They close when the ship is in port in most jurisdictions (Hawaii being the strictest — NCL's Pride of America has no casino for this reason).
@@ -1210,9 +1227,9 @@ Lines with minimal or no casinos: Viking (no casino by design — this is a deli
 THE CAVEATS THAT MATTER MOST: (1) "Free" or comped cruise certificates typically cover the cabin fare for the certificate holder plus one companion only — taxes, port fees, gratuities, and (on some lines) fuel supplements are charged separately even when the fare shows as $0. Any additional guests in the cabin, including children, generally pay full fare for their own berth, and casino offers usually can't be combined with other promotions like "kids sail free." (2) Comp cabins come from a separate, limited allotment — not the ship's regular paying-guest inventory — so availability shrinks as a sailing fills up with revenue passengers, and blackout dates are common on holidays and peak weeks. A comp offer is not guaranteed for a guest's preferred sailing or dates, especially on high-demand itineraries, and certificates are usually only valid if booked within roughly 30–60 days of being issued.
 
 WHAT TO CAPTURE:
-casino_preference captures whether the casino is a priority. When it's important, factor it into line selection — Royal Caribbean and Carnival have the strongest casino programs. When the guest explicitly dislikes casinos or mentions smoke sensitivity, note that casinos are often the only remaining smoking area on many ships — the smoke can occasionally drift into adjacent spaces on some ship layouts. If a guest raises casino play specifically as a strategy to get a cheaper cruise, be factual about the caveats above rather than encouraging it — this is also exactly when the app's casino safety alert (see build_alerts(), triggered on casino_preference) is meant to surface. If a guest is seriously interested in a casino program, tell them the exact current terms, point thresholds, and available sailings should be confirmed with the ship's Players/Casino Club desk once onboard — these programs get revised more often than most cruise policies, and the ship has the live terms.
+casino_preference captures whether the casino is a priority. When it's important, factor it into line selection — Royal Caribbean and Carnival have the strongest casino programs. When the guest explicitly dislikes casinos or mentions smoke sensitivity, note that casinos are often the only remaining smoking area on many ships — the smoke can occasionally drift into adjacent spaces on some ship layouts. If a guest raises casino play specifically as a strategy to get a cheaper cruise, be factual about the caveats above rather than encouraging it — this is also exactly when the app's casino safety alert (see build_alerts(), triggered on casino_preference) is meant to surface. If a guest is seriously interested in a casino program, tell them the exact current terms, point thresholds, and available sailings should be confirmed with the ship's Players/Casino Club desk once onboard — these programs get revised more often than most cruise policies, and the ship has the live terms."""
 
-PHOTOGRAPHY AND THE PHOTO PACKAGE:
+BLOCK_LIFESTYLE_PHOTOGRAPHY = """PHOTOGRAPHY AND THE PHOTO PACKAGE:
 
 THE ONBOARD PHOTOGRAPHY OPERATION:
 Cruise ships have professional photographers stationed throughout the sailing — at the gangway on embarkation, at formal night backdrops, at specialty ports, at character experiences (Disney), and roaming the ship during events. Photos are displayed digitally in the photo gallery and available for individual purchase (typically $25–35 per photo) or via a package.
@@ -1228,10 +1245,9 @@ Norwegian: smaller photo operation — less formal coverage. Individual purchase
 Viking: photography is more understated — less gangway-and-backdrop culture, more candid enrichment moments.
 
 PHOTOGRAPHY_PRIORITY SLOT USE:
-When photography_priority: fully_present — don't raise the photo package at all. This guest has chosen to be in the moment and would find it intrusive. When photography_priority: content_creator — the ship's photo package is irrelevant; they're creating their own content. When photography_priority: serious_photographer — same as content creator, plus itinerary and light conditions may matter to them. When photography_priority: casual_documenter — this is the target for the photo package conversation.
+When photography_priority: fully_present — don't raise the photo package at all. This guest has chosen to be in the moment and would find it intrusive. When photography_priority: content_creator — the ship's photo package is irrelevant; they're creating their own content. When photography_priority: serious_photographer — same as content creator, plus itinerary and light conditions may matter to them. When photography_priority: casual_documenter — this is the target for the photo package conversation."""
 
-
-TRAVEL INSURANCE PROTOCOL — surface proactively whenever logistics are discussed, never skip entirely:
+BLOCK_LIFESTYLE_INSURANCE_INTRO = """TRAVEL INSURANCE PROTOCOL — surface proactively whenever logistics are discussed, never skip entirely:
 Insurance is not a checkbox. For a cruise — particularly an international cruise — it is one of the most consequential decisions a traveler makes before the trip. The consequences of being uninsured range from an inconvenience to a financial catastrophe. Adrian should surface insurance naturally, explain what matters and why, and make sure the guest understands the real risks before the conversation moves on. Not all twelve sections apply to every conversation — surface what's relevant to the specific guest's situation. Do not dump all of it at once.
 
 INSURANCE CONVERSATION RULES — follow these every time insurance comes up:
@@ -1247,7 +1263,99 @@ EXPLAIN WHAT CHANGES, NOT JUST THAT IT CHANGES. Every time Adrian identifies a f
 - Closed-loop US sailing vs. international: domestic sailing has lower medical evacuation exposure; international (especially expedition) needs $250,000-$500,000 evacuation coverage
 - Cruise line policy vs. third-party: cruise line pays credits not cash, lower medical limits; third-party pays cash, better limits, covers full trip not just cruise
 - $800 cost context: is that high or low? For a couple on an international cruise, $800 for a good third-party policy with strong medical coverage is reasonable. For a domestic 3-night Bahamas sailing with no pre-existing conditions, it may be more than necessary."""
+# Reassembled full lifestyle content (all sub-blocks) — kept for backward-compat;
+# build_system_blocks() now assembles a filtered subset per-conversation instead of
+# using this directly. See BLOCK_LIFESTYLE_* constants above.
+BLOCK_ONBOARD_LIFESTYLE = "\n\n".join([
+    BLOCK_LIFESTYLE_SPA, BLOCK_LIFESTYLE_ENTERTAINMENT, BLOCK_LIFESTYLE_KIDS,
+    BLOCK_LIFESTYLE_LOYALTY, BLOCK_LIFESTYLE_POOL, BLOCK_LIFESTYLE_FORMAL,
+    BLOCK_LIFESTYLE_MEDICAL_PRACTICAL, BLOCK_LIFESTYLE_CASINO,
+    BLOCK_LIFESTYLE_PHOTOGRAPHY, BLOCK_LIFESTYLE_INSURANCE_INTRO,
+])
 BLOCK_CABIN_LIFESTYLE = BLOCK_CABIN_CORE + "\n" + BLOCK_ONBOARD_LIFESTYLE  # legacy alias
+
+# "General" onboard-lifestyle content with no single preference-flag trigger —
+# loads whenever needs_lifestyle is true, same condition as before this block was
+# split apart. The 5 flag-specific blocks (spa/kids/loyalty/casino/photography)
+# now load independently, only when their own flag is set, instead of bundled in.
+BLOCK_LIFESTYLE_GENERAL = "\n\n".join([
+    BLOCK_LIFESTYLE_ENTERTAINMENT, BLOCK_LIFESTYLE_POOL, BLOCK_LIFESTYLE_FORMAL,
+    BLOCK_LIFESTYLE_MEDICAL_PRACTICAL, BLOCK_LIFESTYLE_INSURANCE_INTRO,
+])
+
+# ---- A1b (2026-07-11): shortlist-filtered lifestyle sub-blocks ----
+# Each of SPA/LOYALTY/ENTERTAINMENT/POOL/FORMAL below is split into a
+# framework (always sent), a per-line-name entries dict (filtered to the
+# traveler's cruise_line_shortlist once one exists), and a trailer (always
+# sent). Before a shortlist exists, or if filtering would produce zero
+# matches, the full unfiltered entries are sent -- Adrian is never blind
+# to a line the traveler asks about.
+SPA_LINE_MAP = {'Canyon Ranch': ['Celebrity'], 'Mandara Spa': ['Norwegian'], 'Thermal suite on Carnival Vista/Horizon/Mardi Gras': ['Carnival'], 'Viking': ['Viking'], 'Seabourn and Silversea': ['Seabourn', 'Silversea']}
+LOYALTY_LINE_MAP = {'Royal Caribbean Crown & Anchor': ['Royal Caribbean'], "Celebrity Captain's Club": ['Celebrity'], 'Norwegian Latitudes': ['Norwegian'], "Princess Captain's Circle": ['Princess'], 'Carnival VIFP': ['Carnival'], 'Holland America Mariner': ['Holland America'], 'MSC Voyagers Club': ['MSC']}
+POOL_LINE_MAP = {'Royal Caribbean Solarium': ['Royal Caribbean'], 'Celebrity The Retreat Sun Deck': ['Celebrity'], 'Norwegian Haven': ['Norwegian'], 'Virgin Voyages': ['Virgin Voyages'], 'Carnival Serenity': ['Carnival'], 'MSC Aurea': ['MSC']}
+SPA_FRAMEWORK = 'SPA — PACKAGES, BOOKING WINDOWS, AND PORT DAY PRICING:\n\nTHE CORE PRODUCT SPLIT:\nThermal suite (or thermal area): a day-pass or sailing-long access to heated facilities — heated tile loungers, steam rooms, sauna, thalassotherapy pool (seawater jets), cold plunge, sometimes snow room. Not a treatment — a self-directed relaxation space. Most ships charge separately for thermal suite access: $25–40/day single entry or $150–250 for a sailing-long pass. The sailing-long pass pays off if the guest uses it on 5+ days. For a 7-night sailing with 2 sea days, the math rarely works unless the guest plans to use it every sea day and most port evenings. For a 14-night sailing with 6 sea days, the pass is usually excellent value.\nTreatments: massages, facials, body wraps, hair and nail services. Booked individually or via a package (3-treatment, 5-treatment). Treatment packages are almost always cheaper pre-cruise than onboard.\n\nSEA DAY PRICING ADVANTAGE:\nMost ships discount spa treatments on sea days — sometimes 20–30% off the standard rate. The logic: guests are onboard with nowhere to go and the spa wants traffic. For guests with spa_relationship: occasional_treat, sea day bookings are the smart play. For spa_relationship: daily_visitor, a pre-cruise package makes more sense. Flag this when the itinerary has sea days and the guest mentions spa interest: "Treatments on sea days are usually discounted — worth booking one or two for those days rather than pre-purchasing a full package unless you\'re planning to go every day."\n\nBOOKING WINDOWS:\nSpecialty spa treatments (hot stone, couples massage, specialty rituals) can be pre-booked on most lines through the cruise planner 60–90 days before sailing. The best therapists and appointment times fill early on popular ships. If a guest has specific spa goals (couples massage on an anniversary cruise, daily treatments on a long sailing), pre-booking is the right call. Thermal suite passes can often be purchased pre-cruise at a slight discount — confirm with the line.\n\nLINES WITH NOTABLE SPA PRODUCTS:\n'
+SPA_LINE_ENTRIES = {'Canyon Ranch': 'Canyon Ranch: Celebrity ships. Full Canyon Ranch spa at sea — genuinely excellent, among the best spa programs afloat. Premium pricing.', 'Mandara Spa': 'Mandara Spa: Norwegian ships. Solid mainstream spa experience.', 'Thermal suite on Carnival Vista/Horizon/Mardi Gras': 'Thermal suite on Carnival Vista/Horizon/Mardi Gras: large, well-equipped, very popular — books out fast.', 'Viking': 'Viking: the Nordic spa concept (sauna, snow grotto, hot tub, heated pool) is integrated into the ship design and included with certain packages. A genuine differentiator.', 'Seabourn and Silversea': 'Seabourn and Silversea: spa quality matches the overall luxury tier. Smaller ships mean more intimate spa experiences.'}
+SPA_TRAILER = ''
+ENTERTAINMENT_FRAMEWORK = 'ENTERTAINMENT AND SHOW RESERVATIONS:\n\nLINE-BY-LINE BOOKING REQUIREMENTS:\n'
+ENTERTAINMENT_LINE_ENTRIES = {'Royal Caribbean': 'Royal Caribbean: Broadway-caliber shows (Cats, Mamma Mia, Grease, Hairspray depending on ship) require advance reservations through the Royal Caribbean app. The booking window opens 90 days before sailing for Crown & Anchor members and at various windows for others. Popular shows on popular ships (Oasis class, Icon class) sell out. Reserve as soon as the window opens.', 'Celebrity': 'Celebrity: main theater productions do not require reservations on most ships — capacity-based, arrive early.', 'Norwegian': 'Norwegian: the entertainment package (Freestyle Choice) often includes show reservations. Norwegian Epic, Breakaway, and Encore have ticketed headline shows. Book through My NCL before sailing.', 'Disney': 'Disney: character experiences and some specialty dining require advance booking through the Disney Cruise Line Navigator app. Books out fast — sometimes within hours of the booking window opening for popular sailings.', 'Princess': 'Princess: MedallionClass app controls show reservations, dining, and more. Check reservation availability as soon as sailing is booked.', 'Carnival': 'Carnival: most entertainment is first-come first-served. HASBRO game shows and specific ticketed events may require reservations onboard.', 'Viking': 'Viking: enrichment lectures and guest speaker events sometimes have limited seating — sign up through My Viking Journey before sailing.', 'Cunard': 'Cunard: the Royal Court Theatre typically requires no advance reservation. The Queens Room ballroom events are open. Specific speaker series and planetarium shows (QM2) may require sign-up.'}
+ENTERTAINMENT_TRAILER = '\n\nWHAT TO TELL GUESTS:\n"If you\'re sailing on a Royal Caribbean ship with a Broadway show and it\'s something you\'d actually enjoy, book it the day the reservation window opens — it genuinely sells out." The same principle applies to NCL headline entertainment. For other lines, the more common issue is arrival time — getting to the venue 20–30 minutes early for a popular show.'
+LOYALTY_FRAMEWORK = 'LOYALTY PROGRAMS — ONBOARD PERKS AND TIER TRACKING:\n\nSTATUS PERKS WORTH KNOWING:\nMost mainstream cruise line loyalty programs follow a tier structure (entry / mid / elite) with perks that scale by tier. Common elite-tier perks that materially change the experience: priority boarding (board before general boarding opens), priority disembarkation, dedicated check-in line, complimentary specialty dining (one or more nights), free laundry, complimentary internet packages or discounts, free minibar setup, exclusive cocktail parties, complimentary upgrades (cabin assignment when available), dedicated shore excursion tender access.\n\nLINE-SPECIFIC HIGHLIGHTS:\n'
+LOYALTY_LINE_ENTRIES = {'Royal Caribbean Crown & Anchor': 'Royal Caribbean Crown & Anchor: Diamond (80 pts) gets daily drinks vouchers — 4 complimentary drinks per day in any venue, which effectively eliminates the need for a beverage package for moderate drinkers. Pinnacle Club (700 pts) gets suite-level benefits without a suite cabin. Status match/credit available in some cases.', "Celebrity Captain's Club": "Celebrity Captain's Club: Elite and Elite Plus tiers offer strong cocktail hour benefits, laundry, internet. Zenith (highest tier) gets suite perks including Luminae restaurant access.", 'Norwegian Latitudes': 'Norwegian Latitudes: Platinum and Ambassador tiers get free specialty dining, laundry, internet, priority boarding. One of the more valuable mid-tier programs.', "Princess Captain's Circle": "Princess Captain's Circle: Elite tier (150+ credits) gets complimentary internet minutes, laundry, priority, free minibar. The MedallionClass app experience is enhanced for higher tiers.", 'Carnival VIFP': 'Carnival VIFP: Gold and Platinum get priority boarding, discounts, free bottle of wine. Less generous than Royal or Celebrity elite perks but easy to achieve.', 'Holland America Mariner': 'Holland America Mariner: 4-Star and 5-Star get complimentary pinnacle grill dinner, laundry, internet, free cruise credits toward a future sailing — one of the most generous elite tiers.', 'MSC Voyagers Club': "MSC Voyagers Club: the Black Card tier (highest) gets near-suite-level perks on any cabin. MSC's status match program is notably generous — will match status from other lines."}
+LOYALTY_TRAILER = '\n\nSTATUS MATCHES AND POINTS TRANSFERS:\nSeveral lines offer status matches or credit: MSC will match status from almost any line. Celebrity and Royal Caribbean share status within the Royal Caribbean Group. Confirm current terms — these programs change. When a guest mentions loyalty status on another line, surface the status match possibility: "Worth checking if [line] will match your [other line] status — some lines do, and it can save you several sailings worth of earning.\\"'
+POOL_FRAMEWORK = 'POOL AND DECK CULTURE:\n\nCHAIR SAVING — THE REAL PROBLEM:\nChair saving (placing towels on deck chairs hours before using them) is endemic on large cruise ships, particularly on sea days. On the busiest ships (Oasis class, Carnival megaships) the best pool deck chairs can be claimed by 7–8am for an 11am arrival. Most lines have a policy against saving — staff will remove towels from unoccupied chairs after 30–45 minutes — but enforcement varies widely. For pool-prioritizing guests on large ships: getting out early is the only reliable solution. Smaller ships have less of a problem. Adult-only areas (Solarium on Royal Caribbean, The Retreat on Celebrity) have their own seating and are almost always easier to find chairs in.\n\nADULT-ONLY AREAS:\n'
+POOL_LINE_ENTRIES = {'Royal Caribbean Solarium': 'Royal Caribbean Solarium: enclosed or semi-enclosed pool area for guests 16+. Usually quieter and easier to find seating. Includes hot tubs, a pool, and its own dining/bar service.', 'Celebrity The Retreat Sun Deck': 'Celebrity The Retreat Sun Deck: suite guests only on some ships. Not available to all.', 'Norwegian Haven': 'Norwegian Haven: private ship-within-a-ship for Haven suite guests. Private pool, sun deck, restaurant, bar. Completely separate from the general pool deck.', 'Virgin Voyages': "Virgin Voyages: entire ship adults-only (18+). No children's pool problem.", 'Carnival Serenity': 'Carnival Serenity: adults-only area on most ships. Quieter, no water features, but a genuine retreat from the main pool area.', 'MSC Aurea': 'MSC Aurea: spa-adjacent adults-only pool area, typically peaceful.'}
+POOL_TRAILER = '\n\nINSIDE VS. OUTSIDE POOLS:\nSome ships (Norwegian Epic, Royal Caribbean Oasis class) have both indoor and outdoor pool areas. In cold or wet weather, the indoor pool deck becomes the gathering point — can be crowded. The Solarium on Royal ships is a reliable fallback in marginal weather.'
+FORMAL_FRAMEWORK = "FORMAL NIGHTS AND DRESS CODES:\n\nTHE REALITY IN 2025:\nFormal nights have evolved significantly. What was once a mandatory black-tie event on mainstream ships is now more of a suggested dress-up occasion on most lines. The guest who shows up to the main dining room in smart casual on formal night will not be turned away on most mainstream lines. That said, many guests enjoy dressing up — it's part of the ritual — and the photos from formal night are often the most memorable of the sailing.\n\nLINE-BY-LINE REALITY:\n"
+FORMAL_LINE_ENTRIES = {'Cunard': "Cunard: the one line where formal nights remain genuinely formal. Black tie is the expectation in the main dining rooms on formal nights. Not the place to push back on dress code — it's part of the Cunard identity and many guests book specifically for it.", 'Celebrity': 'Celebrity: "Evening Chic" — their version of smart elegant. Think cocktail dresses and dress trousers/blazer. Not black tie. Enforced at the door of the main dining rooms.', 'Royal Caribbean': 'Royal Caribbean: "Formal night" is now "Dress Your Best" — suits, blazers, dresses, cocktail attire. Jeans are discouraged in the main dining room on this night but enforcement is inconsistent.', 'Norwegian': 'Norwegian: "Freestyle Dining" — no formal nights. No dress code enforced in main dining. Some specialty restaurants have smart casual requirements.', 'Viking': 'Viking: smart casual throughout the sailing. No formal nights.', 'Holland America': 'Holland America: formal nights exist but enforcement is relaxed. The line has been moving toward "Dressy Casual."', 'Princess': 'Princess: formal nights ("Dress-Up Night") with similar enforcement to Royal — encouraged but not strictly enforced.', 'Carnival': 'Carnival: "Cruise Elegant" evenings. Smart casual to dressy. Very relaxed enforcement.'}
+FORMAL_TRAILER = '\n\nWHAT TO TELL GUESTS:\n"Formal nights are mostly an opportunity to dress up if you want to — you won\'t be turned away in smart casual on most mainstream lines. If you love getting dressed up, it\'s a great ritual. If you hate it, just know it\'s one or two nights out of seven and you don\'t have to participate beyond smart casual." For Cunard specifically: "Cunard takes formal nights seriously — it\'s part of what makes Cunard, Cunard. If that\'s not your thing, it\'s worth knowing before you book.\\"'
+
+def _filter_lifestyle_entries(entries, shortlist, line_map=None):
+    """Filter a {label: "Label: detail"} lifestyle sub-block dict down to
+    just the traveler's shortlisted cruise lines. line_map optionally maps a
+    dict key to the canonical line name(s) it represents, for blocks keyed by
+    product/brand name rather than the line itself (e.g. spa brands). Falls
+    back to the full unfiltered set whenever there is no shortlist yet, or
+    when filtering would produce zero matches."""
+    if not shortlist:
+        return "\n".join(entries.values())
+    shortlist_names = [s.get("name", "") for s in shortlist if s.get("name")]
+    if not shortlist_names:
+        return "\n".join(entries.values())
+    matched = []
+    for key, line_text in entries.items():
+        canon_names = (line_map or {}).get(key, [key])
+        hit = False
+        for canon in canon_names:
+            for sl_name in shortlist_names:
+                if canon.lower() in sl_name.lower() or sl_name.lower() in canon.lower():
+                    hit = True
+                    break
+            if hit:
+                break
+        if hit:
+            matched.append(line_text)
+    if not matched:
+        return "\n".join(entries.values())
+    return "\n".join(matched)
+
+def build_lifestyle_spa(shortlist):
+    body = _filter_lifestyle_entries(SPA_LINE_ENTRIES, shortlist, SPA_LINE_MAP)
+    return SPA_FRAMEWORK + body + SPA_TRAILER
+
+def build_lifestyle_loyalty(shortlist):
+    body = _filter_lifestyle_entries(LOYALTY_LINE_ENTRIES, shortlist, LOYALTY_LINE_MAP)
+    return LOYALTY_FRAMEWORK + body + LOYALTY_TRAILER
+
+def build_lifestyle_general(shortlist):
+    ent_body = _filter_lifestyle_entries(ENTERTAINMENT_LINE_ENTRIES, shortlist)
+    pool_body = _filter_lifestyle_entries(POOL_LINE_ENTRIES, shortlist, POOL_LINE_MAP)
+    formal_body = _filter_lifestyle_entries(FORMAL_LINE_ENTRIES, shortlist)
+    entertainment_text = ENTERTAINMENT_FRAMEWORK + ent_body + ENTERTAINMENT_TRAILER
+    pool_text = POOL_FRAMEWORK + pool_body + POOL_TRAILER
+    formal_text = FORMAL_FRAMEWORK + formal_body + FORMAL_TRAILER
+    return "\n\n".join([entertainment_text, pool_text, formal_text,
+        BLOCK_LIFESTYLE_MEDICAL_PRACTICAL, BLOCK_LIFESTYLE_INSURANCE_INTRO])
+
 
 BLOCK_INSURANCE = """SECTION 1 — WHY INSURANCE MATTERS: THE REAL RISKS
 Travel insurance is not primarily about lost luggage or a cancelled flight. Those are minor recoverable inconveniences. The reason travel insurance exists — the reason it matters — is medical. A guest who has a heart attack at sea, breaks a leg in a remote port, or has a serious accident on an excursion in a foreign country faces two compounding problems: the medical cost itself, and the cost of getting home. Neither is small. Surface insurance the way a knowledgeable friend would: not as a sales pitch, but as honest context. "The thing people don't think about until they need it is what happens if someone gets seriously hurt or sick far from home. That's where the cost can become genuinely serious, and it's the main reason insurance is worth having." Then go into the specifics that apply to this guest's situation.
@@ -1626,7 +1734,26 @@ def build_system_blocks(profile=None, turn_count=0):
 
     if has_destination:
         blocks.append({"type": "text", "text": build_destination_block(profile)})
-        blocks.append({"type": "text", "text": BLOCK_EXCURSIONS, "cache_control": {"type": "ephemeral"}})
+        blocks.append({"type": "text", "text": BLOCK_EXCURSIONS_FRAMEWORK})
+        # A2 (2026-07-11): region-specific excursion detail (named tender ports,
+        # capacity-constrained attractions, free-exploration ports) only loads for
+        # the traveler's actual destination_region(s), reusing the same lookup
+        # keys as DESTINATION_REGION_MAP/build_destination_block(). A Caribbean-
+        # only conversation no longer pays tokens for Ephesus/Alhambra/Vatican/
+        # Alaska-helicopter detail that will never come up.
+        _region_excursion_parts = []
+        for _reg_key in ([destination] if destination in EXCURSIONS_BY_REGION else []):
+            _region_excursion_parts.append(EXCURSIONS_BY_REGION[_reg_key])
+        if _region_excursion_parts:
+            blocks.append({
+                "type": "text",
+                "text": "\n\n".join(_region_excursion_parts),
+                "cache_control": {"type": "ephemeral"},
+            })
+        else:
+            # No region-specific detail available/needed yet — still mark a
+            # breakpoint on the framework block so the cached prefix is stable.
+            blocks[-1]["cache_control"] = {"type": "ephemeral"}
         # Sea day context useful as soon as destination known
         blocks.append({"type": "text", "text": BLOCK_SEA_DAYS})
 
@@ -1638,7 +1765,30 @@ def build_system_blocks(profile=None, turn_count=0):
         blocks.append({"type": "text", "text": BLOCK_CABIN_CORE})
         if needs_lifestyle:
             blocks.append({"type": "text", "text": BLOCK_ONBOARD_PACKAGES})
-            blocks.append({"type": "text", "text": BLOCK_ONBOARD_LIFESTYLE, "cache_control": {"type": "ephemeral"}})
+            # A1a (2026-07-11): only the sub-blocks matching an actual triggered
+            # signal load, instead of the full bundled BLOCK_ONBOARD_LIFESTYLE.
+            # BLOCK_LIFESTYLE_GENERAL (entertainment/pool/formal/medical/laundry/
+            # insurance-intro) has no single-flag trigger so it stays unconditional
+            # here, same as the old bundled behavior. Kids/spa/loyalty/casino/photo
+            # only load when their own flag is set — e.g. a spa-only traveler no
+            # longer pays tokens for kids-club, loyalty, casino, and photography
+            # content that isn't relevant to them.
+            _lifestyle_parts = [build_lifestyle_general(profile.get("cruise_line_shortlist"))]
+            if has_spa:
+                _lifestyle_parts.append(build_lifestyle_spa(profile.get("cruise_line_shortlist")))
+            if has_children:
+                _lifestyle_parts.append(BLOCK_LIFESTYLE_KIDS)
+            if has_loyalty:
+                _lifestyle_parts.append(build_lifestyle_loyalty(profile.get("cruise_line_shortlist")))
+            if has_casino:
+                _lifestyle_parts.append(BLOCK_LIFESTYLE_CASINO)
+            if has_photo:
+                _lifestyle_parts.append(BLOCK_LIFESTYLE_PHOTOGRAPHY)
+            blocks.append({
+                "type": "text",
+                "text": "\n\n".join(_lifestyle_parts),
+                "cache_control": {"type": "ephemeral"},
+            })
         else:
             blocks.append({"type": "text", "text": BLOCK_ONBOARD_PACKAGES, "cache_control": {"type": "ephemeral"}})
 
@@ -1658,6 +1808,7 @@ def build_system_blocks(profile=None, turn_count=0):
         "handoff_intent", "handoff_generated", "handoff_offer_made",
         "advisor_name", "advisor_contact",
         "topics_covered",
+        "_last_extracted_turn",  # internal extraction-batching bookkeeping only
     }
 
     summary_lines = []
@@ -2358,7 +2509,7 @@ def maybe_run_matching(session_id, profile):
     except Exception as e:
         print(f"Matching engine error: {e}")
 
-def extract_and_save_slots(session_id, history):
+def extract_and_save_slots(session_id, history, turn_count=None):
     """
     Run Haiku slot extraction against the full conversation transcript.
     Merge non-null slots into voyage_profiles.profile. Trigger narrative
@@ -2538,10 +2689,24 @@ def extract_and_save_slots(session_id, history):
         print(f"SLOT EXTRACTION FILTERED: {list(filtered.keys())} CLEARED: {list(cleared_slots)}")
 
         if not filtered and not cleared_slots:
+            # B-batch: still record that extraction ran this turn, even with
+            # no new slots -- otherwise the "turns since last extraction" gap
+            # keeps growing and every future turn re-triggers extraction,
+            # defeating the batching this is meant to provide.
+            if turn_count is not None:
+                try:
+                    _old_marker_profile = get_profile(session_id)
+                    sb_patch("voyage_profiles", {"session_id": f"eq.{session_id}"},
+                             {"profile": {**_old_marker_profile, "_last_extracted_turn": turn_count},
+                              "updated_at": now_iso()})
+                except Exception as e:
+                    print(f"Extraction marker update failed: {e}")
             return
 
         old_profile = get_profile(session_id)
         merged = {**old_profile, **filtered}
+        if turn_count is not None:
+            merged["_last_extracted_turn"] = turn_count
 
         # B3: apply __CLEAR__ corrections — set those slots to null in the merged profile
         if cleared_slots:
@@ -3302,8 +3467,40 @@ def advisor_inquiry():
     clia    = request.form.get("clia", "").strip()
     notes   = request.form.get("notes", "").strip()
 
+    # Honeypot: real users never fill this hidden field. Bots that blindly
+    # fill every input in the form will trip it.
+    if request.form.get("website", "").strip():
+        return redirect("https://peregrineplanner.com/advisors?access=1", code=302)
+
     if not name or not agency or not email:
         return "Missing required fields.", 400
+
+    # Cloudflare Turnstile verification — reject if the token is missing,
+    # invalid, or the secret isn't configured to fail closed once required.
+    turnstile_token = request.form.get("cf-turnstile-response", "").strip()
+    if not TURNSTILE_SECRET_KEY:
+        print("advisor_inquiry: TURNSTILE_SECRET_KEY not set; skipping verification")
+    else:
+        if not turnstile_token:
+            return "Verification failed. Please try again.", 400
+        try:
+            verify_resp = requests.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={
+                    "secret": TURNSTILE_SECRET_KEY,
+                    "response": turnstile_token,
+                    "remoteip": request.headers.get("CF-Connecting-IP", request.remote_addr),
+                },
+                timeout=8,
+            )
+            verify_data = verify_resp.json()
+        except Exception as e:
+            print(f"advisor_inquiry turnstile error: {e}")
+            return "Verification failed. Please try again.", 400
+
+        if not verify_data.get("success"):
+            print(f"advisor_inquiry turnstile rejected: {verify_data.get('error-codes')}")
+            return "Verification failed. Please try again.", 400
 
     import html as _html
     if RESEND_API_KEY:
@@ -4603,7 +4800,7 @@ def render_handoff_html(profile, shortlist, eliminated, advisor_alerts, portrait
     alerts_html   = "".join(f'<div class="al">{a}</div>' for a in advisor_alerts) if advisor_alerts else '<div class="n">No alerts.</div>'
     elim_rows     = "".join(f'<tr><td class="ln">{e["name"]}</td><td>{e["reason"]}</td></tr>' for e in eliminated) if eliminated else '<tr><td colspan="2" class="n">None eliminated.</td></tr>'
 
-    SKIP = {"cruise_line_shortlist","cruise_line_negative_signals","novice_education_flags","advisor_flags"}
+    SKIP = {"cruise_line_shortlist","cruise_line_negative_signals","novice_education_flags","advisor_flags","_last_extracted_turn"}
     slot_rows = "".join(
         f'<tr><td class="sk">{k}</td><td>{v if not isinstance(v,list) else ", ".join(str(x) for x in v)}</td></tr>'
         for k,v in sorted(profile.items()) if k not in SKIP and v is not None
@@ -5096,6 +5293,24 @@ def handoff_generate():
                 "email_sent":   True,
                 "already_done": True,
             })
+        # Part B (2026-07-11): if extraction batching skipped the most recent
+        # turn(s), the saved profile can be behind the live conversation --
+        # run a synchronous catch-up extraction before building the handoff
+        # so it is never generated from stale data. Non-fatal on failure:
+        # proceed with whatever profile is already saved.
+        try:
+            _hoff_rows = sb_get("planning_sessions", {"id": f"eq.{session_id}", "select": "conversation_history"})
+            _hoff_history = (_hoff_rows[0].get("conversation_history") or []) if _hoff_rows else []
+            _hoff_turn_count = len([m for m in _hoff_history if m.get("role") == "user"])
+            _hoff_last_extracted = int(profile.get("_last_extracted_turn") or 0)
+            if _hoff_history and _hoff_turn_count > _hoff_last_extracted:
+                print(f"HANDOFF: profile stale (_last_extracted_turn={_hoff_last_extracted}, "
+                      f"live turn_count={_hoff_turn_count}) -- running catch-up extraction")
+                extract_and_save_slots(session_id, _hoff_history, turn_count=_hoff_turn_count)
+                profile = get_profile(session_id)
+        except Exception as e:
+            print(f"HANDOFF: catch-up extraction failed (non-fatal, proceeding with existing profile): {e}")
+
         if not profile.get("destination_region") and not profile.get("party_size"):
             return jsonify({"error": "Profile is too incomplete to generate a handoff."}), 400
         # D3: use already-computed shortlist if available — avoids redundant matching at handoff time
@@ -5526,9 +5741,9 @@ def chat():
     # gets Adrian's reply immediately instead of waiting on extra Haiku/Sonnet
     # calls. The profile, narrative, and intel panels pick up the results on
     # their next refresh.
-    def _run_extraction(sid, hist):
+    def _run_extraction(sid, hist, tc):
         try:
-            extract_and_save_slots(sid, hist)
+            extract_and_save_slots(sid, hist, turn_count=tc)
         except Exception as e:
             print(f"Extraction dispatch error: {e}")
 
@@ -5537,8 +5752,20 @@ def chat():
         r'^(yes|no|ok|okay|sure|thanks|thank you|got it|sounds good|great|perfect|cool|yep|nope|hi|hello|hey|please|go ahead|continue|next|more|tell me|tell me more|i see|i know|understood|agreed)[\s!.?]*$',
         user_message.strip(), re.I
     )
-    if not _skip_extraction:
-        threading.Thread(target=_run_extraction, args=(session_id, list(history)), daemon=True).start()
+    # Part B (2026-07-11): batch Haiku extraction to roughly every 2 user
+    # turns instead of every non-filler turn, cutting extraction calls
+    # ~in half on longer conversations. Two conditions always force an
+    # immediate extraction regardless of batching: turn 1 (need destination/
+    # party captured as fast as possible) and any turn matching the same
+    # handoff-retry / drink-calculator regexes chat() already uses below for
+    # the handoff button itself -- so batching never delays a signal that
+    # already gets detected independent of Haiku.
+    _handoff_signal = bool(HANDOFF_RETRY_RE.search(user_message) or DRINK_CALC_INTENT_RE.search(user_message))
+    _force_extraction = (turn_count == 1) or _handoff_signal
+    _last_extracted_turn = int(profile.get("_last_extracted_turn") or 0)
+    _batch_due = (turn_count - _last_extracted_turn) >= 2
+    if _force_extraction or (not _skip_extraction and _batch_due):
+        threading.Thread(target=_run_extraction, args=(session_id, list(history), turn_count), daemon=True).start()
 
     # Check for handoff intent. NOTE: this reuses the `profile` fetched earlier
     # in this same request rather than re-querying Supabase — extraction runs
