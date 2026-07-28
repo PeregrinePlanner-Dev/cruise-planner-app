@@ -1822,9 +1822,27 @@ def build_system_blocks(profile=None, turn_count=0):
             blocks.append({"type": "text", "text": BLOCK_ONBOARD_PACKAGES, "cache_control": {"type": "ephemeral"}})
 
     if phase_4_reached:
-        blocks.append({"type": "text", "text": BLOCK_INSURANCE})
-        blocks.append({"type": "text", "text": BLOCK_EMBARK_DOCS})
-        blocks.append({"type": "text", "text": BLOCK_LOGISTICS, "cache_control": {"type": "ephemeral"}})
+        # 2026-07-28 (token-cost audit finding): previously all three Phase-4
+        # blocks (~16.6K tokens combined) loaded together the moment ANY one
+        # of home_airport/travel_mode/travel_documents/travel_insurance was
+        # set -- e.g. a traveler who only mentioned their home airport paid
+        # for insurance + embark-docs + logistics content regardless of
+        # relevance. Split per-signal, same pattern as the A1a lifestyle
+        # blocks: each piece only loads when its own topic has actually come
+        # up. A traveler who's only discussed home airport now gets just
+        # BLOCK_LOGISTICS instead of all three blocks.
+        _phase4_parts = []
+        if insurance:
+            _phase4_parts.append(BLOCK_INSURANCE)
+        if travel_doc:
+            _phase4_parts.append(BLOCK_EMBARK_DOCS)
+        if home_airport or travel_mode:
+            _phase4_parts.append(BLOCK_LOGISTICS)
+        blocks.append({
+            "type": "text",
+            "text": "\n\n".join(_phase4_parts),
+            "cache_control": {"type": "ephemeral"},
+        })
 
     # Known-profile summary — not cached; gives Adrian every fact already on
     # file so a restored/returning session (where conversation_history may be
@@ -3381,86 +3399,6 @@ def videos_browse():
         return jsonify([])
 
 
-@app.route("/api/videos/similar")
-def videos_similar():
-    """Return videos similar to the given file_path — same category and/or region tags.
-    Query params:
-      ?file_path=<path>   the current video to match against (required)
-      ?limit=<n>          max results (default 8)
-    """
-    try:
-        file_path = (request.args.get("file_path") or "").strip()
-        try:
-            limit = min(int(request.args.get("limit") or 8), 20)
-        except ValueError:
-            limit = 8
-
-        if not file_path:
-            return jsonify([])
-
-        # Look up the current video to get its category and region_tags
-        rows = sb_get("videos", {
-            "file_path": f"eq.{file_path}",
-            "select": "category,region_tags",
-            "active": "eq.true",
-            "limit": "1",
-        }) or []
-
-        if not rows:
-            return jsonify([])
-
-        cat         = rows[0].get("category") or ""
-        region_tags = rows[0].get("region_tags") or []
-
-        candidates = []
-
-        # First: same category + any overlapping region tag (most relevant)
-        if cat and region_tags:
-            for region in (region_tags[:2]):
-                import json as _json
-                results = sb_get("videos", {
-                    "select":    "file_path,label,category,short_description,region_tags",
-                    "active":    "eq.true",
-                    "category":  f"eq.{cat}",
-                    "region_tags": f'cs.["{region}"]',
-                    "limit":     str(limit + 5),
-                }) or []
-                candidates.extend(results)
-
-        # Second: same category only (broader)
-        if cat:
-            results = sb_get("videos", {
-                "select":   "file_path,label,category,short_description,region_tags",
-                "active":   "eq.true",
-                "category": f"eq.{cat}",
-                "limit":    str(limit + 5),
-            }) or []
-            candidates.extend(results)
-
-        # Deduplicate, exclude current video, trim
-        seen = {file_path}
-        out  = []
-        for r in candidates:
-            fp = r.get("file_path") or ""
-            if fp and fp not in seen:
-                seen.add(fp)
-                url = fp if fp.startswith("https://") else R2_BASE + "/" + fp
-                out.append({
-                    "url":               url,
-                    "file_path":         fp,
-                    "label":             r.get("label") or fp,
-                    "category":          r.get("category") or "",
-                    "short_description": r.get("short_description") or "",
-                })
-            if len(out) >= limit:
-                break
-
-        return jsonify(out)
-    except Exception as e:
-        print(f"videos_similar error: {e}")
-        return jsonify([])
-
-
 @app.route("/converter")
 def converter_page():
     """Standalone travel converter -- currency, weight, temp, distance, volume."""
@@ -3478,7 +3416,8 @@ def exchange_rates():
         data = resp.json()
         return jsonify(data)
     except Exception as e:
-        return jsonify({"error": str(e)}), 502
+        print(f"exchange_rates error: {e}")
+        return jsonify({"error": "Exchange rate service unavailable."}), 502
 
 
 @app.route("/legal")
@@ -4946,9 +4885,9 @@ def handoff_route():
         portrait = generate_portrait_llm(profile, shortlist, eliminated, advisor_alerts)
         html     = render_handoff_html(profile, shortlist, eliminated, advisor_alerts, portrait)
         return html, 200, {"Content-Type": "text/html; charset=utf-8"}
-    except Exception as e:
+    except Exception:
         import traceback; print(traceback.format_exc())
-        return f"Handoff generation error: {e}", 500
+        return "Handoff generation error. Please try again.", 500
 
 
 # ── Handoff persistence ────────────────────────────────────────────────────
@@ -5441,9 +5380,9 @@ def handoff_generate():
             "client_url":   f"/client/{client_token}",
             "email_sent":   email_ok,
         })
-    except Exception as e:
+    except Exception:
         import traceback; print(traceback.format_exc())
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Handoff generation failed. Please try again."}), 500
 
 
 @app.route("/handoff/<handoff_id>")
@@ -5472,9 +5411,9 @@ def handoff_page(handoff_id):
         outcome = get_outcome(handoff_id)
         html    = render_advisor_page(rec, replies, outcome)
         return html, 200, {"Content-Type": "text/html; charset=utf-8"}
-    except Exception as e:
+    except Exception:
         import traceback; print(traceback.format_exc())
-        return f"Error loading handoff: {e}", 500
+        return "Error loading handoff.", 500
 
 
 @app.route("/api/handoff/<handoff_id>/reply", methods=["POST"])
@@ -5509,9 +5448,9 @@ def handoff_reply(handoff_id):
             upd["cruise_line_booked"] = cruise_line
         sb_patch("outcome_records", {"handoff_id": f"eq.{handoff_id}"}, upd)
         return jsonify({"ok": True})
-    except Exception as e:
+    except Exception:
         import traceback; print(traceback.format_exc())
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to save advisor reply."}), 500
 
 
 @app.route("/client/<client_token>")
@@ -5533,7 +5472,8 @@ def client_page(client_token):
             pass
         return render_client_page(rec), 200, {"Content-Type": "text/html; charset=utf-8"}
     except Exception as e:
-        return f"Error: {e}", 500
+        print(f"client_page error: {e}")
+        return "Error loading page.", 500
 
 
 @app.route("/api/client/<client_token>/signal", methods=["POST"])
@@ -5561,7 +5501,8 @@ def client_signal(client_token):
                 })
         return jsonify({"ok": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"client_signal error: {e}")
+        return jsonify({"error": "Failed to save."}), 500
 
 
 @app.route("/resume/<client_token>")
@@ -5574,7 +5515,6 @@ def resume_conversation(client_token):
     not at a blank opener. A ?resumed=1 query param tells the frontend to suppress the
     static opening bubble and let Adrian greet them as a returning user instead.
     """
-    from flask import redirect, url_for
     try:
         rec = get_handoff_by_token(client_token)
         if not rec:
@@ -5632,16 +5572,31 @@ def lookup_session_by_email():
 
 @app.route("/api/session/select", methods=["POST"])
 def select_session():
-    """Restore a specific session after a multi-match email lookup."""
+    """Restore a specific session after a multi-match email lookup.
+
+    Hardened 2026-07-06 (security audit finding): previously accepted any
+    client-supplied session_id and restored it after only an existence check
+    -- a leaked/guessed UUID (logs, Sentry breadcrumbs, referrer headers)
+    was replayable forever to pull up someone else's saved trip data. Now
+    requires the session_id to be one of the candidates this browser was
+    actually offered via /api/session/lookup-by-email in the same signed
+    session cookie, not just any real session_id in the database.
+    """
     data = request.get_json() or {}
     session_id = (data.get("session_id") or "").strip()
     if not session_id:
         return jsonify({"error": "session_id required"}), 400
 
+    offered = session.get("pending_email_matches") or []
+    offered_ids = {m.get("session_id") for m in offered}
+    if session_id not in offered_ids:
+        return jsonify({"status": "not_found"}), 404
+
     rows = sb_get("planning_sessions", {"id": f"eq.{session_id}", "select": "id"})
     if not rows:
         return jsonify({"status": "not_found"}), 404
 
+    session.pop("pending_email_matches", None)
     _restore_session(session_id)
     return jsonify({"status": "matched"})
 

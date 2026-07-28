@@ -1453,16 +1453,6 @@
     empty.style.display = totalCount === 0 ? "block" : "none";
   }
 
-  async function refreshProfileCard() {
-    try {
-      const res = await fetch("/api/profile");
-      const data = await res.json();
-      renderProfileCard(data.profile || {});
-    } catch {
-      // Non-fatal — card stays as-is
-    }
-  }
-
   // ── Card copy helper ─────────────────────────────────────────────────────
   function makeCopyBtn(headline, body) {
     const btn = document.createElement("button");
@@ -1493,16 +1483,6 @@
       card.innerHTML = `<div class="alert-card-headline">⚠ ${alert.headline}</div><div class="alert-card-body">${alert.body}</div>`;
       card.appendChild(makeCopyBtn(alert.headline, alert.body));
       panel.appendChild(card);
-    }
-  }
-
-  async function refreshAlerts() {
-    try {
-      const res = await fetch("/api/alerts");
-      const data = await res.json();
-      renderAlerts(data.alerts || []);
-    } catch {
-      // Non-fatal
     }
   }
 
@@ -1562,26 +1542,6 @@
 
     card.innerHTML = html;
     container.style.display = "block";
-  }
-
-  async function refreshPortCard() {
-    try {
-      const res  = await fetch("/api/port");
-      const data = await res.json();
-      renderPortCard(data.port);
-    } catch {
-      // Non-fatal
-    }
-  }
-
-  async function refreshIntel() {
-    try {
-      const res = await fetch("/api/intel");
-      const data = await res.json();
-      renderIntel(data.intel || []);
-    } catch {
-      // Non-fatal
-    }
   }
 
   // Consolidated fetch for profile/alerts/intel/port — added 2026-07-02 (K15).
