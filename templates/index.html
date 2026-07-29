@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cruise Planner</title>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -507,6 +508,139 @@
       margin: 4px 0 6px 0;
     }
 
+    /* ── Your Sessions panel ────────────────────────────────────────────── */
+    .sessions-panel {
+      background: #f0fdfa;
+      border: 1px solid #5eead4;
+      border-radius: 10px;
+      padding: 10px 12px;
+      max-height: 190px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .sessions-placeholder {
+      color: #14b8a6;
+      font-size: 11px;
+      opacity: 0.7;
+      text-align: center;
+      padding: 6px 0;
+      line-height: 1.5;
+    }
+
+    .session-card {
+      background: #fff;
+      border: 1px solid #99f6e4;
+      border-left: 3px solid #0d9488;
+      border-radius: 8px;
+      padding: 8px 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .session-card:hover { background: #ecfdf5; }
+
+    .session-card-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #0f766e;
+      padding-right: 20px;
+    }
+
+    .session-card-meta {
+      font-size: 10px;
+      color: #5eaba1;
+      margin-top: 3px;
+    }
+
+    .session-card-delete {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      color: #0d9488;
+      opacity: 0.45;
+      padding: 2px;
+      line-height: 1;
+      transition: opacity 0.15s;
+    }
+
+    .session-card-delete:hover { opacity: 1; }
+
+    /* ── Custom confirm modal (replaces native confirm()/alert() for the
+       Your Sessions panel) ──────────────────────────────────────────────── */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .confirm-overlay[hidden] { display: none; }
+
+    .confirm-card {
+      width: 340px;
+      max-width: calc(100vw - 32px);
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 20px 22px;
+      border-top: 4px solid #0d9488;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    }
+
+    .confirm-card.danger { border-top-color: #dc2626; }
+
+    .confirm-card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+
+    .confirm-card-body {
+      font-size: 13px;
+      color: #475569;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .confirm-card-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .confirm-btn-cancel {
+      background: transparent;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .confirm-btn-ok {
+      color: #ffffff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
     /* ── Port card ──────────────────────────────────────────────────────── */
     .port-card {
       background: #eff6ff;
@@ -642,6 +776,10 @@
     <div class="profile-card" id="profile-card">
       <div class="profile-card-empty" id="profile-card-empty">Your answers will appear here as we go.</div>
     </div>
+    <div class="panel-label" style="color:#0f766e;">🧭 Your Sessions</div>
+    <div class="sessions-panel" id="sessions-panel">
+      <div class="sessions-placeholder">Once you've shared your email, your saved cruise plans will appear here so you can pick any of them back up.</div>
+    </div>
   </div>
 
   <!-- Center — Chat -->
@@ -775,6 +913,17 @@
 
 </div>
 
+<div class="confirm-overlay" id="confirm-overlay" hidden>
+  <div class="confirm-card" id="confirm-card">
+    <div class="confirm-card-title" id="confirm-title"></div>
+    <div class="confirm-card-body" id="confirm-body"></div>
+    <div class="confirm-card-actions">
+      <button class="confirm-btn-cancel" id="confirm-cancel-btn">Cancel</button>
+      <button class="confirm-btn-ok" id="confirm-ok-btn"></button>
+    </div>
+  </div>
+</div>
+
 
 <script>
   const messagesEl = document.getElementById("chat-messages");
@@ -874,6 +1023,14 @@
       stopVoyage();
       appendMessage(data.response || "Sorry, something went wrong.", "bot");
       refreshPanels(['alerts', 'intel']);
+      // Fixed 2026-07-29: the Your Sessions panel only ever loaded once, at
+      // page-init, before an email cookie could exist -- so it stayed on
+      // the "share your email" placeholder for the rest of the session even
+      // after the cookie was set mid-conversation (e.g. a bare-email reply
+      // sets it on that same /api/chat response). Refresh it every turn,
+      // same cadence as alerts/intel, so it picks up the cookie as soon as
+      // it exists instead of only on the next full page reload.
+      refreshSessionsPanel();
       // Delay video and port card - they depend on destination slot which extracts in background
       setTimeout(refreshVideo, 1500);
       setTimeout(() => refreshPanels(['port']), 1500);
@@ -1144,6 +1301,12 @@
       refreshVideo();
     }
   });
+
+  // Your Sessions panel is independent of the returning-user prompt above —
+  // it reflects ALL of this traveler's saved trips (by email cookie), not
+  // just whether THIS browser session has one in progress, so it loads
+  // regardless of which branch above fires.
+  refreshSessionsPanel();
 
   // ── Live profile card ────────────────────────────────────────────────────
   // Narrative slots — rendered as warm voice blocks at the top of the panel.
@@ -1469,6 +1632,279 @@
     return btn;
   }
 
+  // ── Your Sessions panel ─────────────────────────────────────────────────
+  // Raised 2026-07-28 (TODO_AND_OPEN_ITEMS.md), built 2026-07-29. Shows a
+  // traveler's saved/in-progress cruise plans as an always-visible on-screen
+  // panel (not a popup) so someone can juggle more than one trip at once,
+  // per Rick's selling-point framing for this feature.
+  async function refreshSessionsPanel() {
+    try {
+      const res = await fetch("/api/session/list-mine");
+      const data = await res.json();
+      renderSessionsPanel(data);
+    } catch (e) {
+      // Non-fatal — panel just keeps whatever it last showed.
+    }
+  }
+
+  // Turnstile widget for the panel's email form (added 2026-07-29, security
+  // follow-up to Rick's question about no-password/no-verification email
+  // lookup). Explicit render, not the implicit <div class="cf-turnstile">
+  // page-scan pattern used on advisors.html — that page renders once and
+  // never changes, but this panel's innerHTML gets rebuilt on every
+  // refreshSessionsPanel() call (every chat turn) while still in the
+  // "email not known" state, so a passive scan would only ever catch the
+  // very first render and silently do nothing on every one after that.
+  let _sessionsTurnstileToken = null;
+  let _sessionsTurnstileWidgetId = null;
+  function renderSessionsTurnstile() {
+    const el = document.getElementById("sessions-turnstile");
+    if (!el) return;
+    if (typeof turnstile === "undefined") {
+      setTimeout(renderSessionsTurnstile, 300); // api.js still loading
+      return;
+    }
+    _sessionsTurnstileToken = null;
+    _sessionsTurnstileWidgetId = turnstile.render(el, {
+      sitekey: "0x4AAAAAAD_-BIjU0EwZBprP",
+      size: "flexible",
+      callback: (token) => { _sessionsTurnstileToken = token; },
+      "expired-callback": () => { _sessionsTurnstileToken = null; },
+    });
+  }
+
+  // Direct email lookup from the panel's own empty state (added 2026-07-29)
+  // — sets the SESSION_EMAIL_COOKIE server-side and renders whatever comes
+  // back immediately, no separate list-mine round-trip needed.
+  async function identifyByEmail(email, statusEl, btn) {
+    if (!email) return;
+    if (!_sessionsTurnstileToken) {
+      statusEl.style.display = "block";
+      statusEl.style.color = "#dc2626";
+      statusEl.textContent = "Please complete the verification above, then try again.";
+      return;
+    }
+    statusEl.style.display = "block";
+    statusEl.style.color = "#0f766e";
+    statusEl.textContent = "Looking...";
+    btn.disabled = true;
+    try {
+      const res = await fetch("/api/session/identify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, turnstile_token: _sessionsTurnstileToken }),
+      });
+      const data = await res.json();
+      if (res.status !== 200 || data.error) {
+        statusEl.style.color = "#dc2626";
+        statusEl.textContent = data.error === "verification_failed"
+          ? "Verification failed — try again."
+          : "That doesn't look like a valid email — try again.";
+        btn.disabled = false;
+        if (_sessionsTurnstileWidgetId !== null) turnstile.reset(_sessionsTurnstileWidgetId);
+        _sessionsTurnstileToken = null;
+        return;
+      }
+      renderSessionsPanel(data);
+    } catch (e) {
+      statusEl.style.color = "#dc2626";
+      statusEl.textContent = "Something went wrong — try again in a moment.";
+      btn.disabled = false;
+      if (_sessionsTurnstileWidgetId !== null) turnstile.reset(_sessionsTurnstileWidgetId);
+      _sessionsTurnstileToken = null;
+    }
+  }
+
+  function renderSessionsPanel(data) {
+    const panel = document.getElementById("sessions-panel");
+    const sessions = (data && data.sessions) || [];
+
+    // Added 2026-07-29: a direct email lookup right here in the panel,
+    // instead of asking Adrian to request email in the opening turn (which
+    // would add friction for brand-new users who have nothing to look up
+    // yet). Returning users can identify themselves in one step, no chat
+    // turns spent on it, Adrian's opening script stays untouched.
+    if (!data || !data.email_known) {
+      panel.innerHTML = `
+        <div class="sessions-placeholder" style="margin-bottom:8px;">Have a saved plan? Enter your email to find it.</div>
+        <div style="display:flex; gap:6px;">
+          <input type="email" id="sessions-email-input" placeholder="you@example.com"
+            style="flex:1; font-size:11px; padding:6px 8px; border:1px solid #99f6e4; border-radius:6px; font-family:inherit; min-width:0;">
+          <button id="sessions-email-submit"
+            style="background:#0d9488; color:#fff; border:none; border-radius:6px; padding:6px 10px; font-size:11px; cursor:pointer; font-family:inherit; white-space:nowrap;">Find my plans</button>
+        </div>
+        <div id="sessions-turnstile" style="margin-top:8px;"></div>
+        <div class="sessions-email-status" id="sessions-email-status" style="font-size:10px; color:#0f766e; margin-top:6px; display:none;"></div>
+      `;
+      const input   = document.getElementById("sessions-email-input");
+      const btn     = document.getElementById("sessions-email-submit");
+      const status  = document.getElementById("sessions-email-status");
+      renderSessionsTurnstile();
+      const submit = () => identifyByEmail(input.value.trim(), status, btn);
+      btn.addEventListener("click", submit);
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      return;
+    }
+    if (sessions.length === 0) {
+      panel.innerHTML = `
+        <div class="sessions-placeholder">No other saved cruise plans yet — this one will appear here too once there's enough to show.</div>
+        <div style="text-align:center; margin-top:6px;">
+          <a href="#" id="sessions-forget-email" style="font-size:10px; color:#0d9488;">Not you? Try a different email</a>
+        </div>
+      `;
+      document.getElementById("sessions-forget-email").addEventListener("click", async (e) => {
+        e.preventDefault();
+        await fetch("/api/session/forget-email", { method: "POST" });
+        refreshSessionsPanel();
+      });
+      return;
+    }
+
+    panel.innerHTML = "";
+    for (const s of sessions) {
+      const card = document.createElement("div");
+      card.className = "session-card";
+
+      // Fixed 2026-07-29: fall back to first_name before the fully generic
+      // label when destination_region isn't set yet (true for several
+      // early-stage test sessions) -- real captured data, not invented.
+      const title = s.destination_region
+        || (s.first_name ? `${s.first_name}'s cruise plan` : "Cruise planning session");
+      const when = (s.last_active_at || "").slice(0, 10);
+      const turns = typeof s.turn_count === "number" ? `${s.turn_count} message${s.turn_count === 1 ? "" : "s"}` : "";
+      const metaBits = [when, turns].filter(Boolean).join(" · ");
+      // s.summary already has its own "(started YYYY-MM-DD)" suffix (shared
+      // with the chat-text candidate list) -- strip it here since the date
+      // is already shown via metaBits, so the card doesn't show the date twice.
+      const cleanSummary = (s.summary || "").replace(/\s*\(started [^)]*\)\s*$/, "");
+
+      card.innerHTML = `
+        <div class="session-card-title">${title}</div>
+        <div class="session-card-meta">${cleanSummary}${metaBits ? " · " + metaBits : ""}</div>
+        <button class="session-card-delete" title="Delete this saved plan">✕</button>
+      `;
+      card.addEventListener("click", () => switchSession(s.session_id, title, when));
+      card.querySelector(".session-card-delete").addEventListener("click", (evt) => {
+        evt.stopPropagation();
+        deleteSession(s.session_id, title, when);
+      });
+      panel.appendChild(card);
+    }
+    const forgetRow = document.createElement("div");
+    forgetRow.style.cssText = "text-align:center; margin-top:2px;";
+    forgetRow.innerHTML = '<a href="#" id="sessions-forget-email" style="font-size:10px; color:#0d9488;">Not you? Try a different email</a>';
+    panel.appendChild(forgetRow);
+    document.getElementById("sessions-forget-email").addEventListener("click", async (e) => {
+      e.preventDefault();
+      await fetch("/api/session/forget-email", { method: "POST" });
+      refreshSessionsPanel();
+    });
+  }
+
+  function replaceOpeningMessage(html) {
+    // Swaps in a single bot bubble as the only visible message, without
+    // touching the #typing-indicator node (still needed by sendMessage
+    // afterward) — same insertBefore pattern used for normal replies below,
+    // just clearing prior .message nodes first.
+    messagesEl.querySelectorAll(".message").forEach(m => m.remove());
+    const msg = document.createElement("div");
+    msg.className = "message bot";
+    msg.innerHTML = `<div class="bubble">${html}</div><div class="message-time">Just now</div>`;
+    messagesEl.insertBefore(msg, typingEl);
+  }
+
+  // Custom confirm modal (added 2026-07-29) — replaces the native
+  // confirm()/alert() dialogs for the Your Sessions panel with an in-app
+  // card matching the rest of the UI. Resolves true (confirmed) or false
+  // (cancelled/dismissed via backdrop click).
+  function showConfirmModal({ title, body, confirmLabel, danger }) {
+    return new Promise((resolve) => {
+      const overlay  = document.getElementById("confirm-overlay");
+      const card     = document.getElementById("confirm-card");
+      const okBtn     = document.getElementById("confirm-ok-btn");
+      const cancelBtn = document.getElementById("confirm-cancel-btn");
+
+      document.getElementById("confirm-title").textContent = title;
+      document.getElementById("confirm-body").innerHTML = body;
+      okBtn.textContent = confirmLabel;
+      okBtn.style.background = danger ? "#dc2626" : "#0d9488";
+      card.classList.toggle("danger", !!danger);
+      overlay.hidden = false;
+
+      function cleanup(result) {
+        overlay.hidden = true;
+        okBtn.removeEventListener("click", onOk);
+        cancelBtn.removeEventListener("click", onCancel);
+        overlay.removeEventListener("click", onOverlayClick);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function onOverlayClick(e) { if (e.target === overlay) cleanup(false); }
+
+      okBtn.addEventListener("click", onOk);
+      cancelBtn.addEventListener("click", onCancel);
+      overlay.addEventListener("click", onOverlayClick);
+    });
+  }
+
+  async function switchSession(sessionId, title, when) {
+    const dateBit = when ? ` (started ${when})` : "";
+    const ok = await showConfirmModal({
+      title: "Switch to this cruise plan?",
+      body: `You'll switch to your <strong>${title}</strong> plan${dateBit}. Your current conversation remains safely stored — you can switch back to it at any time.`,
+      confirmLabel: "Switch",
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch("/api/session/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const data = await res.json();
+      if (data.status !== "matched") {
+        alert("Couldn't switch to that saved plan — try refreshing the page.");
+        return;
+      }
+      const profRes = await fetch("/api/profile");
+      const profData = await profRes.json();
+      replaceOpeningMessage(buildRecapMessage(profData.profile || {}));
+      refreshPanels(['profile', 'alerts', 'intel', 'port']);
+      refreshVideo(true);
+      refreshSessionsPanel();
+      inputEl.focus();
+    } catch (e) {
+      alert("Something went wrong switching trips — try again in a moment.");
+    }
+  }
+
+  async function deleteSession(sessionId, title, when) {
+    const dateBit = when ? ` started on ${when}` : "";
+    const ok = await showConfirmModal({
+      title: "Delete this saved cruise plan?",
+      body: `This permanently removes your <strong>${title}</strong> cruise plan${dateBit}. This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch("/api/session/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      const data = await res.json();
+      if (data.status === "deleted") {
+        refreshSessionsPanel();
+      } else {
+        alert("Couldn't delete that saved plan — try refreshing the page.");
+      }
+    } catch (e) {
+      alert("Something went wrong deleting that plan — try again in a moment.");
+    }
+  }
+
   // ── Alerts panel ──────────────────────────────────────────────────────────
   function renderAlerts(alerts) {
     const panel = document.getElementById("alerts-panel");
@@ -1562,7 +1998,7 @@
     }
   }
 
-  async function refreshVideo() {
+  async function refreshVideo(force) {
     try {
       const res = await fetch("/api/video");
       const data = await res.json();
@@ -1573,7 +2009,14 @@
       const vf = data.video && data.video.filename;
       if (!vf) return;
       const newSrc = (data.video && data.video.url) || "/videos/" + vf;
-      if (sourceEl.getAttribute("src") !== newSrc) {
+      // force=true (used when switching saved sessions, added 2026-07-29):
+      // reload/play unconditionally rather than only when newSrc differs
+      // from the currently-loaded source. Two saved plans can legitimately
+      // share the same destination_region (e.g. two Northern Europe trips),
+      // which would otherwise make a switch look like the video "didn't
+      // resume" even though the switch itself worked correctly -- forcing
+      // the reload removes that ambiguity at negligible cost.
+      if (force || sourceEl.getAttribute("src") !== newSrc) {
         sourceEl.setAttribute("src", newSrc);
         videoEl.load();
         videoEl.play().catch(() => {});

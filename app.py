@@ -94,6 +94,15 @@ REST = f"{SUPABASE_URL}/rest/v1"
 
 EMAIL_PROMPT_TURN = 6
 
+# Cookie used by the "Your Sessions" panel (raised 2026-07-28, built 2026-07-29)
+# to know whose saved trips to show on page load, without asking again every
+# visit. Set once an email is known (bare-email reply or an already-saved
+# profile), read on /api/session/list-mine. 400 days is the longest value
+# Chrome/Safari will honor for a non-session cookie without silently
+# truncating it.
+SESSION_EMAIL_COOKIE = "peregrine_email"
+SESSION_EMAIL_COOKIE_MAX_AGE = 60 * 60 * 24 * 400
+
 
 def now_iso():
     """Return current UTC time as ISO 8601 string for Supabase timestamp columns."""
@@ -119,6 +128,15 @@ def sb_patch(table, filters, data):
     r = requests.patch(f"{REST}/{table}", headers=SB_HEADERS, params=filters, json=data, timeout=10)
     r.raise_for_status()
     return r.json()
+
+
+def sb_delete(table, filters):
+    """Delete rows matching filters (e.g. {'id': 'eq.<uuid>'}). Used by the
+    user-facing session-delete endpoint -- unlike /dev/flush-sessions this
+    always targets a single row by primary key, never a broad filter."""
+    r = requests.delete(f"{REST}/{table}", headers=SB_HEADERS, params=filters, timeout=10)
+    r.raise_for_status()
+    return True
 
 
 def sb_upsert(table, data, on_conflict):
@@ -194,6 +212,8 @@ There's no obligation here at any point — share only what you wish, and we'll 
 And what's the best email address to send everything to when we're done? No worries if you'd rather wait — you can always add it later.
 
 Now — tell me what you have in mind." If their first reply contains a destination or plan idea instead of a name, go with it — just pick up their name at the next natural pause. If they say something like "I've used this before" or "I'm back," follow the RETURNING USER guidance below. Use their name naturally throughout the conversation once you have it, but don't overdo it. Once every few turns is right. Never refer to yourself as an AI, a bot, an assistant, or a system. You are Adrian.
+
+EMAIL ADDRESSES — NEVER AUTO-CORRECT: When a user gives you an email address, treat it as an exact string, not a word to be spell-checked. If you ever repeat it back to them (confirming it was saved, addressing them by it, etc.), reproduce it character-for-character exactly as they typed it — even if part of it doesn't look like a real word (e.g. "arroeroot56@gmail.com" is NOT the same as "arrowroot56@gmail.com," and must never be silently "fixed" to the more familiar-looking spelling). A wrong-but-verbatim echo lets the user catch and correct their own typo; a silently "corrected" echo hides the typo and can send their saved plan or handoff email to the wrong address entirely.
 
 CRUISE EXPERIENCE — open-ended entry:
 The conversation now opens with "tell me what you have in mind" rather than asking cruise experience first. Cruise experience will emerge naturally from the conversation. If it hasn't surfaced by the second or third exchange, ask it naturally in context — "Have you sailed before, or would this be your first cruise?" — but only when it fits the flow. Once established, never re-ask it.
@@ -2344,6 +2364,19 @@ def get_profile(session_id):
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
+# Unanchored version -- matches an email ANYWHERE in a message, not just a
+# bare stand-alone reply. Added 2026-07-29 to force a synchronous catch-up
+# extraction (see chat()) when a turn mentions an email at all, so a
+# same-turn correction ("actually it's x@y.com, I typed that wrong before")
+# updates the persisted profile.email and SESSION_EMAIL_COOKIE before this
+# turn's response is sent, rather than waiting up to 2 turns for the
+# batched background extraction to catch up -- confirmed as a real,
+# reproduced gap (Rick, 2026-07-29): a corrected email only ever showed up
+# in Adrian's own conversational awareness (full transcript, always current)
+# while the persisted record and cookie stayed on the original misspelling
+# until the next turn happened to trigger extraction.
+EMAIL_ANYWHERE_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
 # Matches explicit requests to open/use the drink package calculator, e.g.
 # "open the drink calculator", "can you run the drink package tool".
 # Detected synchronously on the current message so the "Open Drink
@@ -2362,18 +2395,43 @@ HANDOFF_RETRY_RE = re.compile(
 
 
 def _session_summary_label(profile, row):
-    """Build a short human-readable label for a saved session, used when a
-    returning user has multiple saved trips and needs to pick one."""
+    """Build a short human-readable label for a saved session, used both when
+    a returning user has multiple saved trips and needs to pick one (chat
+    text) and by the "Your Sessions" panel (built 2026-07-29).
+
+    Fixed 2026-07-29: previously fell back straight to the generic "Cruise
+    planning session" the moment destination_region/trip_occasion were both
+    missing -- true for several early-stage test sessions, which made cards
+    show nothing but a date, exactly the complaint that surfaced this. Now
+    also uses destination_specific (often filled before destination_region
+    settles) and first_name as real, already-captured fallbacks before
+    resorting to the fully generic label -- no invented detail, just using
+    what's actually on the profile instead of ignoring it.
+    """
     dest = profile.get("destination_region")
+    specific = profile.get("destination_specific")
     occasion = profile.get("trip_occasion")
+    first_name = profile.get("first_name")
     when = row.get("last_active_at") or row.get("created_at") or ""
     date_part = when[:10] if when else ""
+
     parts = []
-    if dest:
+    if dest and specific and dest.lower() != str(specific).lower():
+        parts.append(f"{dest} ({specific})")
+    elif dest:
         parts.append(dest)
+    elif specific:
+        parts.append(str(specific))
     if occasion:
         parts.append(str(occasion).replace("_", " "))
-    label = " — ".join(parts) if parts else "Cruise planning session"
+
+    if parts:
+        label = " — ".join(parts)
+    elif first_name:
+        label = f"{first_name}'s cruise plan"
+    else:
+        label = "Cruise planning session"
+
     if date_part:
         label += f" (started {date_part})"
     return label
@@ -2440,6 +2498,40 @@ def find_sessions_by_email(email):
 
     results.sort(key=lambda r: r.get("last_active_at") or "", reverse=True)
     return results
+
+
+def list_sessions_with_turn_counts(email):
+    """Wraps find_sessions_by_email with a turn_count per session, for the
+    "Your Sessions" panel (raised 2026-07-28, built 2026-07-29). Kept as a
+    separate wrapper rather than changing find_sessions_by_email's return
+    shape directly, since that function is also used by the returning-user
+    email-match flow in /api/chat and /api/session/lookup-by-email, which
+    don't need turn_count and shouldn't be touched by this addition.
+
+    Batches the conversation_history fetch for all matched sessions in one
+    Supabase call rather than one round-trip per session.
+    """
+    matches = find_sessions_by_email(email)
+    if not matches:
+        return matches
+
+    ids = [m["session_id"] for m in matches]
+    try:
+        rows = sb_get("planning_sessions", {
+            "id": f"in.({','.join(ids)})",
+            "select": "id,conversation_history",
+        })
+        counts = {
+            row["id"]: len([m for m in (row.get("conversation_history") or []) if m.get("role") == "user"])
+            for row in rows
+        }
+    except Exception as e:
+        print(f"list_sessions_with_turn_counts: turn-count fetch failed (non-fatal): {e}")
+        counts = {}
+
+    for m in matches:
+        m["turn_count"] = counts.get(m["session_id"], 0)
+    return matches
 
 
 def _restore_session(session_id):
@@ -5547,6 +5639,7 @@ def resume_conversation(client_token):
         return f"Error resuming session: {e}", 500
 
 @app.route("/api/session/lookup-by-email", methods=["POST"])
+@limiter.limit("5 per minute;20 per hour")
 def lookup_session_by_email():
     """Returning-user email lookup. If exactly one saved session matches the
     email, restore it into the current Flask session. If multiple, return
@@ -5570,7 +5663,38 @@ def lookup_session_by_email():
     return jsonify({"status": "multiple", "sessions": matches})
 
 
+def _owns_session_via_email_cookie(session_id):
+    """Fresh, authoritative ownership check: does session_id belong to the
+    email in SESSION_EMAIL_COOKIE, verified directly against Supabase right
+    now -- not against any previously-cached "offered" list.
+
+    Added 2026-07-29 to fix a real, reproduced bug: the offered-list checks
+    below (session["pending_email_matches"] / session["sessions_panel_offered"])
+    live inside Flask's signed, client-side session cookie. Switching a
+    session fires several concurrent, unawaited fetches (panel refresh,
+    video refresh, sessions-panel refresh) right after the switch --
+    whichever response's Set-Cookie reaches the browser last wins, even if
+    it was computed from an older snapshot, so a second switch attempt
+    right after the first could see a stale/emptied offered list and fail
+    with a false "not_found", requiring a full page reload to recover
+    (reload forces a fresh /api/session/list-mine call, which happens to
+    repopulate it). Re-verifying straight against the email cookie + a live
+    Supabase lookup sidesteps the whole race -- it doesn't depend on any
+    earlier request having "remembered" the right thing.
+    """
+    email = (request.cookies.get(SESSION_EMAIL_COOKIE) or "").strip().lower()
+    if not email or not EMAIL_RE.match(email):
+        return False
+    try:
+        matches = find_sessions_by_email(email)
+    except Exception as e:
+        print(f"_owns_session_via_email_cookie lookup failed: {e}")
+        return False
+    return any(m.get("session_id") == session_id for m in matches)
+
+
 @app.route("/api/session/select", methods=["POST"])
+@limiter.limit("20 per minute;100 per hour")
 def select_session():
     """Restore a specific session after a multi-match email lookup.
 
@@ -5581,15 +5705,27 @@ def select_session():
     requires the session_id to be one of the candidates this browser was
     actually offered via /api/session/lookup-by-email in the same signed
     session cookie, not just any real session_id in the database.
+
+    Widened 2026-07-29: also accepts a fresh SESSION_EMAIL_COOKIE-based
+    ownership check (see _owns_session_via_email_cookie) as an alternative
+    to the cached offered-list check -- fixes the race described there
+    without weakening security, since it still requires proving ownership
+    of the same email the sessions are actually saved under.
     """
     data = request.get_json() or {}
     session_id = (data.get("session_id") or "").strip()
     if not session_id:
         return jsonify({"error": "session_id required"}), 400
 
-    offered = session.get("pending_email_matches") or []
+    # Checks both offer lists: the older mid-chat "which trip is yours" flow
+    # (pending_email_matches) and the Your Sessions panel's own list
+    # (sessions_panel_offered) -- plus a fresh email-cookie re-verification
+    # that doesn't depend on either list being intact.
+    offered = (session.get("pending_email_matches") or []) + (session.get("sessions_panel_offered") or [])
     offered_ids = {m.get("session_id") for m in offered}
-    if session_id not in offered_ids:
+    in_offered = session_id in offered_ids
+    via_cookie = _owns_session_via_email_cookie(session_id)
+    if not in_offered and not via_cookie:
         return jsonify({"status": "not_found"}), 404
 
     rows = sb_get("planning_sessions", {"id": f"eq.{session_id}", "select": "id"})
@@ -5599,6 +5735,180 @@ def select_session():
     session.pop("pending_email_matches", None)
     _restore_session(session_id)
     return jsonify({"status": "matched"})
+
+
+@app.route("/api/session/list-mine")
+@limiter.limit("20 per minute;100 per hour")
+def list_my_sessions():
+    """Powers the always-visible "Your Sessions" panel (raised 2026-07-28,
+    built 2026-07-29). Reads the email from SESSION_EMAIL_COOKIE (set by
+    chat() once an email is known) rather than requiring the user to type
+    it again every visit.
+
+    Populates session["sessions_panel_offered"] with the same match objects
+    /api/session/lookup-by-email would produce, so a click-to-switch on the
+    panel can call the existing, already-hardened /api/session/select
+    unchanged -- that endpoint only restores a session_id it finds in an
+    offered list, so this route has to populate one first.
+
+    BUG FIXED 2026-07-29 (Rick's live test, same day as the build): this
+    originally wrote to session["pending_email_matches"] -- the SAME key
+    /api/session/new and a couple of other resets (chat_reset, the
+    ambiguous-reply fallback in chat()) already clear as part of resetting
+    the OLDER mid-chat email-lookup flow. Clicking "Start a new cruise"
+    right after the panel loaded silently wiped the panel's still-visibly-
+    rendered cards' ownership record, so clicking one produced a false
+    "not_found" from /api/session/select even though the cards were right
+    there on screen. Given its own key now so the two flows can't step on
+    each other; /api/session/select and /api/session/delete check both.
+    """
+    email = (request.cookies.get(SESSION_EMAIL_COOKIE) or "").strip().lower()
+    if not email or not EMAIL_RE.match(email):
+        return jsonify({"sessions": [], "email_known": False})
+
+    try:
+        matches = list_sessions_with_turn_counts(email)
+    except Exception as e:
+        print(f"list_my_sessions error: {e}")
+        matches = []
+
+    session["sessions_panel_offered"] = matches
+    return jsonify({"sessions": matches, "email_known": True})
+
+
+def _verify_turnstile(token, action):
+    """Shared Cloudflare Turnstile check (same verify call already used by
+    advisor_inquiry). Fails OPEN (skips verification, logs it) if
+    TURNSTILE_SECRET_KEY isn't configured -- matches advisor_inquiry's
+    existing behavior, so local/dev runs without the secret set still work
+    rather than being locked out entirely. Fails CLOSED (rejects) on any
+    missing/invalid token or a verify-call error once the secret IS set.
+    """
+    if not TURNSTILE_SECRET_KEY:
+        print(f"_verify_turnstile ({action}): TURNSTILE_SECRET_KEY not set; skipping verification")
+        return True
+    if not token:
+        return False
+    try:
+        verify_resp = requests.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data={
+                "secret": TURNSTILE_SECRET_KEY,
+                "response": token,
+                "remoteip": request.headers.get("CF-Connecting-IP", request.remote_addr),
+            },
+            timeout=8,
+        )
+        verify_data = verify_resp.json()
+    except Exception as e:
+        print(f"_verify_turnstile ({action}) error: {e}")
+        return False
+    if not verify_data.get("success"):
+        print(f"_verify_turnstile ({action}) rejected: {verify_data.get('error-codes')}")
+        return False
+    return True
+
+
+@app.route("/api/session/identify", methods=["POST"])
+@limiter.limit("5 per minute;20 per hour")
+def identify_by_email():
+    """Lets a returning traveler find their saved plans directly from the
+    Your Sessions panel's empty state, without going through a chat turn at
+    all (raised/built 2026-07-29 -- Rick's alternative to asking for email
+    in Adrian's opening turn, which would add friction for brand-new users
+    for no benefit to them). Takes a typed email, sets SESSION_EMAIL_COOKIE
+    so future page loads auto-populate the panel, and returns the session
+    list immediately so the panel can render without a second round-trip.
+
+    Turnstile-gated (added 2026-07-29, security follow-up): rate limiting
+    alone stops scripted mass-enumeration but not a single deliberate lookup
+    of a known email by a real person -- Turnstile doesn't stop that either,
+    but it does close the "script a list of addresses" version of the risk
+    without adding visible friction for real users (invisible pass in the
+    common case; only a challenge for traffic that looks automated).
+    """
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    if not EMAIL_RE.match(email):
+        return jsonify({"error": "invalid_email"}), 400
+
+    if not _verify_turnstile(data.get("turnstile_token"), "session_identify"):
+        return jsonify({"error": "verification_failed"}), 400
+
+    try:
+        matches = list_sessions_with_turn_counts(email)
+    except Exception as e:
+        print(f"identify_by_email error: {e}")
+        matches = []
+
+    session["sessions_panel_offered"] = matches
+    resp = jsonify({"sessions": matches, "email_known": True})
+    resp.set_cookie(
+        SESSION_EMAIL_COOKIE, email,
+        max_age=SESSION_EMAIL_COOKIE_MAX_AGE,
+        httponly=True, samesite="Lax", secure=True,
+    )
+    return resp
+
+
+@app.route("/api/session/forget-email", methods=["POST"])
+def forget_email():
+    """Clears SESSION_EMAIL_COOKIE so the Your Sessions panel's email form
+    reappears -- lets someone who typed the wrong address try again, since
+    an httponly cookie can't be cleared from JS directly."""
+    resp = jsonify({"ok": True})
+    resp.set_cookie(SESSION_EMAIL_COOKIE, "", max_age=0, httponly=True, samesite="Lax", secure=True)
+    session.pop("sessions_panel_offered", None)
+    return resp
+
+
+@app.route("/api/session/delete", methods=["POST"])
+@limiter.limit("20 per minute;100 per hour")
+def delete_session():
+    """Delete a saved planning session from the "Your Sessions" panel.
+
+    Ownership check mirrors /api/session/select's 2026-07-06 hardening: the
+    session_id must be one this browser was actually offered (present in
+    session["sessions_panel_offered"] or the older session["pending_email_matches"],
+    populated by /api/session/list-mine or /api/session/lookup-by-email
+    respectively) -- not just any real session_id, so a leaked/guessed UUID
+    can't be used to delete someone else's saved trip. Also accepts a fresh
+    SESSION_EMAIL_COOKIE-based re-verification (see _owns_session_via_email_cookie),
+    added 2026-07-29 for the same reason as /api/session/select: the cached
+    offered-list can go stale from a race between concurrent panel-refresh
+    requests, and re-checking directly against Supabase sidesteps that
+    entirely without weakening the actual security guarantee.
+
+    Deletes voyage_profiles before planning_sessions (child row before
+    parent) -- /dev/flush-sessions only ever deleted voyage_profiles and
+    left planning_sessions behind (flagged in TODO_AND_OPEN_ITEMS.md); this
+    endpoint deletes both so a removed card doesn't leave an orphaned row.
+    """
+    data = request.get_json() or {}
+    session_id = (data.get("session_id") or "").strip()
+    if not session_id:
+        return jsonify({"error": "session_id required"}), 400
+
+    panel_offered = session.get("sessions_panel_offered") or []
+    chat_offered  = session.get("pending_email_matches") or []
+    offered_ids = {m.get("session_id") for m in panel_offered + chat_offered}
+    if session_id not in offered_ids and not _owns_session_via_email_cookie(session_id):
+        return jsonify({"status": "not_found"}), 404
+
+    try:
+        sb_delete("voyage_profiles", {"session_id": f"eq.{session_id}"})
+        sb_delete("planning_sessions", {"id": f"eq.{session_id}"})
+    except Exception as e:
+        print(f"delete_session error: {e}")
+        return jsonify({"error": "delete failed"}), 500
+
+    session["sessions_panel_offered"] = [m for m in panel_offered if m.get("session_id") != session_id]
+    if chat_offered:
+        session["pending_email_matches"] = [m for m in chat_offered if m.get("session_id") != session_id]
+    if session.get("session_id") == session_id:
+        session.pop("session_id", None)
+
+    return jsonify({"status": "deleted"})
 
 
 @app.route("/api/chat", methods=["POST"])
@@ -5772,7 +6082,26 @@ def chat():
     _force_extraction = (turn_count == 1) or _handoff_signal
     _last_extracted_turn = int(profile.get("_last_extracted_turn") or 0)
     _batch_due = (turn_count - _last_extracted_turn) >= 2
-    if _force_extraction or (not _skip_extraction and _batch_due):
+
+    # Synchronous catch-up extraction when this message mentions an email
+    # anywhere (added 2026-07-29, real bug Rick hit: a corrected email only
+    # ever showed up in Adrian's own conversational awareness while the
+    # persisted profile.email and SESSION_EMAIL_COOKIE stayed on the original
+    # typo until whenever the batched background extraction next happened to
+    # run). Mirrors the existing synchronous catch-up already used in
+    # handoff_generate() -- blocks THIS turn's response briefly rather than
+    # deferring to the background thread, specifically because an identity
+    # field being stale isn't something the next-turn self-correction is
+    # good enough for (unlike most other slots).
+    _email_mentioned = bool(EMAIL_ANYWHERE_RE.search(user_message))
+    if _email_mentioned:
+        try:
+            extract_and_save_slots(session_id, list(history), turn_count=turn_count)
+            profile = get_profile(session_id)  # refresh so the cookie logic below sees it
+        except Exception as e:
+            print(f"Synchronous email catch-up extraction failed (non-fatal): {e}")
+
+    if not _email_mentioned and (_force_extraction or (not _skip_extraction and _batch_due)):
         threading.Thread(target=_run_extraction, args=(session_id, list(history), turn_count), daemon=True).start()
 
     # Check for handoff intent. NOTE: this reuses the `profile` fetched earlier
@@ -5816,7 +6145,30 @@ def chat():
         except Exception as e:
             print(f"Failed to clear handoff_intent after serving: {e}")
 
-    return jsonify({"response": bot_reply, "handoff_action": handoff_intent, "advisor_name": advisor_name})
+    resp = jsonify({"response": bot_reply, "handoff_action": handoff_intent, "advisor_name": advisor_name})
+
+    # Set the "Your Sessions" panel cookie once an email is known, so the
+    # panel can find this traveler's saved trips on their next visit without
+    # asking again (raised 2026-07-28, built 2026-07-29). Two sources, in
+    # order of freshness: the bare-email reply just handled above this same
+    # turn (stripped_msg), or an email already on the profile from a prior
+    # turn. An email newly captured by background slot extraction from a
+    # message embedded in a longer sentence (the K1 gap from the 2026-07-29
+    # test pass) won't be reflected in `profile` until the NEXT turn, same
+    # one-turn lag every other background-extraction-derived value has here.
+    _cookie_email = None
+    if EMAIL_RE.match(stripped_msg):
+        _cookie_email = stripped_msg.lower()
+    elif profile.get("email"):
+        _cookie_email = str(profile["email"]).strip().lower()
+    if _cookie_email:
+        resp.set_cookie(
+            SESSION_EMAIL_COOKIE, _cookie_email,
+            max_age=SESSION_EMAIL_COOKIE_MAX_AGE,
+            httponly=True, samesite="Lax", secure=True,
+        )
+
+    return resp
 
 
 @app.route("/api/chat/reset", methods=["POST"])
