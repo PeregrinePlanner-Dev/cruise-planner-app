@@ -2648,11 +2648,19 @@ def maybe_run_matching(session_id, profile):
     except Exception as e:
         print(f"Matching engine error: {e}")
 
-def extract_and_save_slots(session_id, history, turn_count=None):
+def extract_and_save_slots(session_id, history, turn_count=None, retry=True):
     """
     Run Haiku slot extraction against the full conversation transcript.
     Merge non-null slots into voyage_profiles.profile. Trigger narrative
     generation if a major signal slot changed.
+
+    retry=False (added 2026-07-29): skips the one-retry-on-failure below.
+    Used by the synchronous email catch-up call in chat() -- that call
+    blocks the user's actual response, so a hung/slow Haiku call plus a
+    2s-sleep-then-retry could add up to ~42s to a live request (confirmed
+    live: caused a "Connection error -- please try again" for Rick while
+    adding an email mid-conversation). The background/batched callers keep
+    retry=True since a slower retry there doesn't block anyone.
     """
     try:
         lines = []
@@ -2681,8 +2689,10 @@ def extract_and_save_slots(session_id, history, turn_count=None):
             )
         }]
         # B7: one retry on Haiku failure — transient API errors shouldn't silently drop a turn's slots
+        # (skipped when retry=False -- see docstring)
         resp = None
-        for _attempt in range(2):
+        _max_attempts = 2 if retry else 1
+        for _attempt in range(_max_attempts):
             try:
                 resp = claude.messages.create(
                     model="claude-haiku-4-5-20251001",
@@ -2690,10 +2700,11 @@ def extract_and_save_slots(session_id, history, turn_count=None):
                     system=extraction_system,
                     messages=extraction_payload,
                     stop_sequences=["\nUSER:", "\nUser:", "\nuser:", "\nASSISTANT:", "\nAssistant:"],
+                    timeout=20,
                 )
                 break
             except Exception as _e:
-                if _attempt == 0:
+                if _attempt < _max_attempts - 1:
                     import time as _time
                     print(f"SLOT EXTRACTION: attempt 1 failed ({_e}), retrying in 2s...")
                     _time.sleep(2)
@@ -6096,7 +6107,10 @@ def chat():
     _email_mentioned = bool(EMAIL_ANYWHERE_RE.search(user_message))
     if _email_mentioned:
         try:
-            extract_and_save_slots(session_id, list(history), turn_count=turn_count)
+            # retry=False: this call blocks the user's response, so it must fail
+            # fast (bounded by the 20s timeout above) rather than potentially
+            # doubling to ~42s via the background path's retry-and-sleep.
+            extract_and_save_slots(session_id, list(history), turn_count=turn_count, retry=False)
             profile = get_profile(session_id)  # refresh so the cookie logic below sees it
         except Exception as e:
             print(f"Synchronous email catch-up extraction failed (non-fatal): {e}")
