@@ -3347,10 +3347,15 @@ def build_intel(profile):
         })
 
     # ── Tender port intel ──────────────────────────────────────────
+    # Body updated 2026-08-01 — numbered-group boarding detail and loyalty-tier
+    # priority note added per Rick's firsthand Princess Cruises tender experience.
+    # Loyalty-tier priority is phrased as "some lines" deliberately, not asserted
+    # as universal — this varies by cruise line and hasn't been verified line-by-line
+    # (Gate 5 candidate: confirm which specific lines offer this before naming one).
     if any(p in destination for p in ("santorini", "mediterr", "caribbean", "europe")):
         intel.append({
             "headline": "Tender ports: get off early or book a ship excursion",
-            "body": "At anchor-only ports (Santorini, Kotor, Bora Bora) the ship tenders guests ashore. Peak-hour queues can mean 45-60 minutes waiting. Either book a ship excursion for priority tender access, or be at the tender dock the moment it opens.",
+            "body": "At anchor-only ports (Santorini, Kotor, Bora Bora) the ship tenders guests ashore. Boarding usually runs by numbered group to manage the flow, not first-come-first-served at the door — you're called down when your number's up. Peak-hour queues can still mean 45-60 minutes waiting. Book a ship excursion for priority tender access, be at the tender meeting point the moment numbers start being called, or ask if your loyalty tier gets priority tender boarding — some lines offer this to higher-tier members.",
         })
 
     # ── Alaska land extension intel ────────────────────────────────
