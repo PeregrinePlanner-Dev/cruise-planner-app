@@ -1872,7 +1872,7 @@ def build_system_blocks(profile=None, turn_count=0):
         "email", "first_name", "last_name",  # surfaced separately / handled elsewhere
         "generated_narrative",               # surfaced separately, full text
         "cruise_line_shortlist", "cruise_line_negative_signals",  # internal matching output
-        "handoff_intent", "handoff_generated", "handoff_offer_made",
+        "handoff_intent", "handoff_generated", "handoff_offer_made", "handoff_save_offered",
         "advisor_name", "advisor_contact",
         "topics_covered",
         "_last_extracted_turn",  # internal extraction-batching bookkeeping only
@@ -2413,6 +2413,17 @@ HANDOFF_RETRY_RE = re.compile(
     re.I,
 )
 
+# K24 fix (2026-08-06): used to backend-verify a Haiku-derived handoff_intent
+# of "save" actually has explicit user save-language behind it, rather than
+# trusting Haiku's extraction alone. See the false-positive note where this
+# is applied in extract_and_save_slots.
+SAVE_INTENT_RE = re.compile(
+    r"\b(save (it|this|my progress|it for later|for later|my profile|my info|my information)|"
+    r"hold onto (this|it)|keep (this|it) (on file|saved)|bookmark this|"
+    r"(yes|yeah|sure|ok|okay|please)[,.]?\s*save\b)",
+    re.I,
+)
+
 
 def _session_summary_label(profile, row):
     """Build a short human-readable label for a saved session, used both when
@@ -2817,6 +2828,25 @@ def extract_and_save_slots(session_id, history, turn_count=None, retry=True):
             filtered["handoff_offer_made"] = True
         else:
             filtered.pop("handoff_offer_made", None)  # don't let Haiku set it prematurely
+
+        # K24 fix (2026-08-06): handoff_intent="save" was firing as a false
+        # positive when Haiku read the user's reply to EMAIL_COLLECTION_TEXT
+        # (which itself contains the phrase "save your progress") as an
+        # implicit save request, even though SLOT_EXTRACTION_PROMPT instructs
+        # "only set on an explicit user statement." Same false-positive
+        # source already fixed for handoff_offer_made above (C5) — same
+        # backend-authoritative pattern applied here: require actual save
+        # language somewhere in the user's own messages before trusting it.
+        if filtered.get("handoff_intent") == "save":
+            _save_explicit = any(
+                SAVE_INTENT_RE.search(msg["content"])
+                for msg in history if msg["role"] == "user"
+            )
+            if not _save_explicit:
+                print("SLOT EXTRACTION: dropping likely false-positive "
+                      "handoff_intent='save' (no explicit save language in "
+                      "any user message — probably a reply to EMAIL_COLLECTION_TEXT)")
+                filtered.pop("handoff_intent")
 
         # Validate/repair extracted emails before saving to planner_users / profile.
         # Common typo: a comma where the period before the TLD should be
@@ -6167,6 +6197,17 @@ def chat():
         handoff_intent  = None
         advisor_name    = None
 
+    # K24 fix (2026-08-06): even with the extraction-side false-positive guard
+    # above (SAVE_INTENT_RE), a legitimate "save" signal could still be
+    # re-derived by a later background extraction pass re-reading the same
+    # transcript and showing the card again. Make "save" strictly one-shot
+    # per session — once served, don't serve it again unless the user
+    # explicitly asks to resend/retry (same bypass already used for
+    # handoff_generated below).
+    if handoff_intent == "save" and fresh_profile.get("handoff_save_offered") \
+            and not HANDOFF_RETRY_RE.search(user_message):
+        handoff_intent = None
+
     # Allow explicit retry even after handoff_generated — user asking to resend
     # bypasses the gate so the connect button can re-appear.
     if handoff_intent is None and HANDOFF_RETRY_RE.search(user_message):
@@ -6188,6 +6229,10 @@ def chat():
         # If the user re-signals intent later, slot extraction will set it again.
         try:
             profile_upd = {**fresh_profile, "handoff_intent": None}
+            if handoff_intent == "save":
+                # K24 fix (2026-08-06): mark save as offered so it can't be
+                # re-served this session even if extraction re-derives it.
+                profile_upd["handoff_save_offered"] = True
             sb_patch("voyage_profiles", {"session_id": f"eq.{session_id}"},
                      {"profile": profile_upd, "updated_at": now_iso()})
         except Exception as e:
